@@ -9,7 +9,6 @@ def get_logger(filename):
     if filename in logger_dict:
         return logger_dict[filename]
         
-    assert filename[0] == '/'
     
     segs = filename.split('/')
     logger_name = 'default'
@@ -19,6 +18,8 @@ def get_logger(filename):
 
     if logger_name in logger_dict:
         return logger_dict[logger_name]
+
+    assert os.path.isabs(filename)
 
     logger = logging.getLogger(logger_name)
     file_handler = logging.handlers.RotatingFileHandler(filename,

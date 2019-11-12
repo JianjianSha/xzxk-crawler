@@ -1,10 +1,10 @@
 import yaml
 from .easydict import EasyDict as edict
 import json
-# import os
+import os
 
 def load(filename):
-    if filename[0] != '/':
+    if not os.path.isabs(filename):
         raise ValueError("filename must be abspath, bug got %s" % filename)
     d = edict()
     with open(filename, 'r', encoding='utf-8') as f:
@@ -14,7 +14,7 @@ def load(filename):
 
 
 def dump(filename, d):
-    if filename[0] != '/':
+    if not os.path.isabs(filename):
         raise ValueError("filename must be abspath, bug got %s" % filename)
 
     with open(filename, 'w') as f:
