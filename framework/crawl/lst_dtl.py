@@ -280,10 +280,16 @@ class MSCrawler:
 
         
     def _master_prepare(self):
-        self.pg_index = int(self.redis.get(self.redis_pg_index))
-        if self.pg_index is None:
-            self.pg_index = 1
-            self.redis.set(self.redis_pg_index, self.pg_index)
+        pass
+
+    def _get_page_atomic(self):
+        # if there are many master, getting page index should
+        #   be a exclusive process
+        pipe = self.redis.pipeline(transaction=True)
+        pipe.multi()
+        pipe.incr(self.redis_pg_index)
+        pg_index = pipe.execute()
+        self.pg_index = int(pg_index) - 1
 
 
     def _slave_run(self):
@@ -333,6 +339,12 @@ class MSCrawler:
 
 
     def _master_run(self):
+
+        self._get_page_atomic()
+
+        if self.pg_index == 0:
+            self._get_page_atomic()
+
         url_args = self._lst()
 
         if not url_args:
