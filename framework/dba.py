@@ -24,10 +24,18 @@ def create_table_sql(tb_name, scheme, indices=None):
     return sql
 
 def insert_sql(tb_name, scheme):
-    sql = "insert into %s (%s) values (%s getdate())" % (
+    auto_gen_time_num = 0
+    for field in scheme[::-1]:
+        if field.endswith('time'):
+            auto_gen_time_num += 1
+        else:
+            break
+
+    sql = "insert into %s (%s) values (%s %s)" % (
         tb_name, 
         ', '.join([row[0] for row in scheme if row[0] != 'id']),
-        "%s, " * (len(scheme) - 2))
+        "%s, " * (len(scheme) - 1 - auto_gen_time_num),
+        'getdate()' * auto_gen_time_num if auto_gen_time_num else '')
     return sql
 
 class TempDBA:

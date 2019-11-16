@@ -25,7 +25,7 @@ def get_logger(filename):
     file_handler = logging.handlers.RotatingFileHandler(filename,
                                                         mode='w',
                                                         maxBytes=1024*1024,
-                                                        backupCount=5,
+                                                        backupCount=50,
                                                         encoding='utf-8')
     logger.setLevel(logging.INFO)
     formatter = logging.Formatter("%(asctime)s %(name)s %(levelname)s %(message)s %(pathname)s %(lineno)d")
