@@ -26,7 +26,7 @@ def create_table_sql(tb_name, scheme, indices=None):
 def insert_sql(tb_name, scheme):
     auto_gen_time_num = 0
     for field in scheme[::-1]:
-        if field.endswith('time'):
+        if field[0].endswith('time'):
             auto_gen_time_num += 1
         else:
             break
