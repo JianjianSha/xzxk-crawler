@@ -1,2 +1,2 @@
 source activate
-./framework/start.py
+python './start.py'

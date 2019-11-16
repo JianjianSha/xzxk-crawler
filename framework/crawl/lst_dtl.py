@@ -263,9 +263,10 @@ class MSCrawler:
         if self.is_master:
             self._master_prepare()
             while self._master_run():
-                self.logger.info('%s (master) spider finished scraping the '
-                                 'list-page at %d' % (
-                                    self.cfg.PROJECT.NAME, self.pg_index))
+                info = '%s (master) spider finished scraping the ' \
+                       'list-page at %d' % (self.cfg.PROJECT.NAME, self.pg_index)
+                print(info)
+                # self.logger.info(info)
 
                 if not alive.value:
                     break
@@ -279,10 +280,10 @@ class MSCrawler:
 
         
     def _master_prepare(self):
-        self.pg_index = self.redis.get(self.redis_pg_index)
+        self.pg_index = int(self.redis.get(self.redis_pg_index))
         if self.pg_index is None:
             self.pg_index = 1
-            self.redis.set(self.redis_pg_index, 1)
+            self.redis.set(self.redis_pg_index, self.pg_index)
 
 
     def _slave_run(self):
@@ -291,16 +292,19 @@ class MSCrawler:
         while len(records) < 10:
             arg = self.redis.blpop(self.redis_key, 30)
             if arg:
+                arg = str(arg[1], encoding='utf-8')
                 args = arg.split(self.redis_arg_sep)
-                url = self.dtl_url % (args[0], args[1])
+                url = self.dtl_url % (*args,)
                 record = self._dtl(url, args)
                 if record:
-
-                    pipe = self.redis.pipeline(transaction=True)
-                    pipe.multi()
-                    val = pipe.get(self.redis_key_prefix+arg) or 0
-                    pipe.set(self.redis_key_prefix+arg, val+1)
-                    pipe.execute()
+                    # self.redis.watch(self.redis_key_prefix+arg)
+                    # val = self.redis.get(self.redis_key_prefix+arg) or 0
+                    # pipe = self.redis.pipeline(transaction=True)
+                    # pipe.multi()
+                    # pipe.set(self.redis_key_prefix+arg, int(val)+1)
+                    # pipe.execute()
+                    # self.redis.unwatch(self.redis_key_prefix+arg)
+                    self.redis.incr(self.redis_key_prefix+arg)
 
                     records.append(record)
                     fail_number = 0
@@ -310,6 +314,8 @@ class MSCrawler:
                 fail_number += 1
 
             if fail_number >= 10:
+                print('%s (slave) failed exceeding 10 times, please check'
+                      ' the log info and do some debugging before continuing to work')
                 break
         
         if records:
@@ -333,7 +339,7 @@ class MSCrawler:
             return False
 
         self.redis.rpush(self.redis_key, 
-                         [self.redis_arg_sep.join(arg) for arg in url_args])
+                         *[self.redis_arg_sep.join(arg) for arg in url_args])
 
         self.pg_index += 1
         self.redis.set(self.redis_pg_index, self.pg_index)

@@ -3,6 +3,7 @@
 from urllib import request, parse
 from bs4 import BeautifulSoup
 import re
+import time
 from datetime import datetime
 import os
 from framework.crawl.lst_dtl import LSTDTLCrawler, MSCrawler
@@ -42,7 +43,7 @@ class CrawlerBase:
 
         # data of post-request
         self.data = {
-            'pageIndex':self.cache.pg_index,
+            'pageIndex':1,
             'LYID':'SXBZXR',
             'MC':'',
             'ZJHM':'',
@@ -90,7 +91,11 @@ class CrawlerBase:
 
     def _parse_dtl(self, req):
         resp = request.urlopen(req, timeout=20)
-        if resp != 200:
+        if resp.code != 200:
+            print('resp http status is not 200. please refer to log for page content')
+            self.logger.error('failed to get normal response from request %s, the '
+                              'returned page content is\n %s' % 
+                              (req.full_url, resp.read().decode('utf-8', errors='ignore')))
             return None
         # print('request url %s, and status code: %d' % (url, resp.code))
         page = resp.read().decode('utf-8', errors='ignore')
@@ -141,7 +146,7 @@ class Crawler(LSTDTLCrawler, CrawlerBase):
             args = self._parse_lst(req)
             if args:
                 for arg in args:
-                    url = self.dtl_url % (*arg)
+                    url = self.dtl_url % (*arg,)
                     self.queue1.put((url, arg))      # block
 
         except Exception as e:
@@ -171,12 +176,12 @@ class Crawler(LSTDTLCrawler, CrawlerBase):
 
 class DCrawler(MSCrawler, CrawlerBase):
     def __init__(self, is_master):
-        super(Crawler, self).__init__(cfg_file, is_master)
+        super(DCrawler, self).__init__(cfg_file, is_master)
 
         self.init()
 
     def _lst(self):
-        self.data['pageIndex'] = self.cache.pg_index
+        self.data['pageIndex'] = self.pg_index
         d = parse.urlencode(self.data).encode('utf-8')
         req = request.Request(self.lst_url, data=d, headers=self.headers)
 
@@ -191,7 +196,7 @@ class DCrawler(MSCrawler, CrawlerBase):
         return None
 
 
-    def _dtl(self, args):
+    def _dtl(self, url, args):
         req = request.Request(url, headers=self.headers)
 
         try:
