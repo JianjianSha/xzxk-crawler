@@ -5,15 +5,16 @@ channels:
   - defaults
   - conda-forge
 dependencies:
-  - beautifulsoup4=4.8.0=py37_0
-  - conda=4.7.12=py37_0
-  - lxml=4.4.1=py37hefd8a0e_0
-  - nodejs=10.13.0=he6710b0_0
+  - beautifulsoup4
+  - conda=4.7.12
+  - lxml
+  - nodejs
   - pip=19.1.1=py37_0
   - pymssql=2.1.4=py37h7b6447c_0
+  - yaml
   - python=3.7.3=h0371630_0
   - python-libarchive-c=2.8=py37_11
-  - pyyaml=5.1.2=py37h7b6447c_0
+  - pyyaml
   - redis-py=3.3.11=py_0
   - requests=2.22.0=py37_0
   - setuptools=41.0.1=py37_0

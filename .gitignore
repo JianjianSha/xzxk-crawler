@@ -133,4 +133,5 @@ dmypy.json
 log/*
 cfg/*.yml
 !cfg/cfg.yml
+!log/readme.md
 .vscode
