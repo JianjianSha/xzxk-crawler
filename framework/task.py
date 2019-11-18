@@ -3,12 +3,12 @@ import importlib
 import yaml
 from multiprocessing import Process, Value
 from .config import load
-import platform
+from .utils.env import IS_WINDOWS
 import signal
 import time
 
-IS_WINDOWS = (platform.system() == 'Windows')
-IS_LINUX = (platform.system() == 'Linux')
+
+
 
 
 class Task(Process):

@@ -191,7 +191,8 @@ class DCrawler(MSCrawler, CrawlerBase):
 
         except Exception as e:
             self.logger.exception('failed to get list data at page %s with '
-                                  'pg_index %d, error: %s' % (self.pg_index, 
+                                  'pg_index %d, error: %s' % (self.lst_url, 
+                                                              self.pg_index, 
                                                               str(e)))
         return None
 

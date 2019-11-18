@@ -264,7 +264,8 @@ class MSCrawler:
             self._master_prepare()
             while self._master_run():
                 info = '%s (master) spider finished scraping the ' \
-                       'list-page at %d' % (self.cfg.PROJECT.NAME, self.pg_index)
+                       'list-page %d at %s' % (self.cfg.PROJECT.NAME, 
+                                               self.pg_index, datetime.now())
                 print(info)
                 # self.logger.info(info)
 
@@ -289,7 +290,10 @@ class MSCrawler:
         pipe.multi()
         pipe.incr(self.redis_pg_index)
         pg_index = pipe.execute()
-        self.pg_index = int(pg_index) - 1
+        if pg_index:
+            self.pg_index = int(pg_index[0]) - 1
+        else:
+            print('failed to get page index atomicly, please check first')
 
 
     def _slave_run(self):
