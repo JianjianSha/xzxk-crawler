@@ -1,13 +1,14 @@
 # credit  zhejiang  ningbo
 
 from urllib import request, parse
+import socket
 from bs4 import BeautifulSoup
 import re
 import time
 from datetime import datetime
 import os
 from framework.crawl.lst_dtl import LSTDTLCrawler, MSCrawler
-from projects import CFG_DIR
+from tasks import CFG_DIR
 
 # cache_file = os.path.realpath(
 #     os.path.join(os.path.dirname(__file__), '../../cfg', 'zj_nb_cache.yml'))
@@ -27,18 +28,19 @@ class CrawlerBase:
             '证件类型':1,
             '身份证号码/组织机构代码':2,
             '法定代表人或者负责人姓名':3,
-            '执行法院':4,
-            '省份':5,
-            '执行依据文号':6,
-            '立案时间':7,
-            '案号':8,
-            '做出执行依据单位':9,
-            '生效法律文书确定的义务':10,
-            '被执行人的履行情况':11,
-            '失信被执行人行为具体情形':12,
-            '已履行部分':13,
-            '未履行部分':14,
-            '发布时间':15
+            '性别': 4,
+            '执行法院':5,
+            '省份':6,
+            '执行依据文号':7,
+            '立案时间':8,
+            '案号':9,
+            '做出执行依据单位':10,
+            '生效法律文书确定的义务':11,
+            '被执行人的履行情况':12,
+            '失信被执行人行为具体情形':13,
+            '已履行部分':14,
+            '未履行部分':15,
+            '发布时间':16
         }
 
         # data of post-request
@@ -185,15 +187,21 @@ class DCrawler(MSCrawler, CrawlerBase):
         d = parse.urlencode(self.data).encode('utf-8')
         req = request.Request(self.lst_url, data=d, headers=self.headers)
 
-        try:
-            args = self._parse_lst(req)
-            return args
-
-        except Exception as e:
-            self.logger.exception('failed to get list data at page %s with '
-                                  'pg_index %d, error: %s' % (self.lst_url, 
-                                                              self.pg_index, 
-                                                              str(e)))
+        num = 1
+        while num < 5:
+            try:
+                args = self._parse_lst(req)
+                return [self.redis_arg_sep.join(arg) for arg in url_args]
+            except socket.timeout as e:
+                num += 1
+                self.logger.exception('socket timeout error, try again (%d trying)'
+                                      % num)
+            except Exception as e:
+                self.logger.exception('failed to get list data at page %s with '
+                                    'pg_index %d, error: %s' % (self.lst_url, 
+                                                                self.pg_index, 
+                                                                str(e)))
+                break
         return None
 
 

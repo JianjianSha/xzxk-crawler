@@ -1,0 +1,36 @@
+PROJECT:
+  NAME: xx.xx     # separated by dot. used as path level
+  REDIS:          # for distributing crawler, only redis is used 
+    URL: 'redis://host:6379/0'
+    KEY_PREFIX: 'xx:xx:'  # any value you like, but should end with ':'
+    ARG_SEP: '_'  # sometimes, it needs to join many arguments with a sperator to use as redis key
+
+WEB:
+  URL_0: xx       # url, which usually point to a list-page
+  URL_1: xx       # url, which usually point to a detail-page
+  TABLES: [
+    DB_NAME.TB_NAME   # where the data should be persisted after scrapping
+  ]
+
+DATABASES:
+  INITIALIZE: False    # Check if table is exists in DB. If not, try to create automatically
+  DB_NAME_0:    # mssql.DB_NAME
+    HOST: xx.xx.xx.xx
+    USER: USER_NAME
+    PWD: PASSWORD
+
+    TABLES:
+      TB_NAME_0:
+        FIELDS: [
+          [id, int identity(1,1), not null primary key], # first column must be `id`, used as a PK with auto-incremention
+          [fld1, varchar(512), not null],
+          [fld2, varchar(128), 'null'],
+          [fld3, varchar(128), 'null'],
+          # ... more field specifications
+          [create_time, varchar(32), 'null'] # all auto-generated time fields should be located at end, with name ending with `time`
+        ]
+        INDICES: [
+          # [field_name, unique/nonunique]
+        ]
+      # more tables
+  # more databases

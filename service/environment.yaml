@@ -1,0 +1,10 @@
+name: base
+channels:
+  - pytorch
+  - https://repo.anaconda.com/pkgs/main
+  - defaults
+  - conda-forge
+dependencies:
+  - nodejs
+  - web.py
+prefix: /home/jian/sha/tool/miniconda3

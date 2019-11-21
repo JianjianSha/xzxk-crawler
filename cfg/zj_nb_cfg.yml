@@ -1,0 +1,50 @@
+PROJECT:
+  NAME: zj.nb     #
+  INST_NAME: 1
+  REDIS:          # for distributing crawler, only redis is used 
+    URL: 'redis://192.168.2.106:6379/0'
+    KEY_PREFIX: 'zj:nb:'
+    ARG_SEP: '_'  # sometimes, it needs to join many arguments with a sperator to use as redis key
+
+WEB:
+  URL_0: http://www.nbcredit.gov.cn/nbggxyww/hmd/getHmdListQG
+  URL_1: http://www.nbcredit.gov.cn/nbggxyww/hmd/getHmdMapQG?UNID=%s&DXLX=%s
+  TABLES: [
+    QZProperty.Executee,
+  ]
+
+DATABASES:
+  INITIALIZE: False    # Check if table is exists in DB.
+  QZProperty:    # mssql.DB_NAME
+    HOST: 192.168.2.195
+    USER: qzdata
+    PWD: qzdata.admin
+
+    TABLES:
+      Executee:
+        FIELDS: [
+          [id, int identity(1,1), not null primary key],
+          [exec_name, varchar(512), not null],
+          [credent_type, varchar(128), 'null'],
+          [id_code, varchar(128), 'null'],
+          [lawperson_name, varchar(256), 'null'],
+          [sex, varchar(128), 'null'],
+          [exec_court, varchar(256), 'null'],
+          [province, varchar(128), 'null'],
+          [exec_doc_no, varchar(256), 'null'],
+          [case_time, varchar(64), 'null'],
+          [case_no, varchar(256), 'null'],
+          [exec_department, varchar(256), 'null'],
+          [duty, varchar(4096), 'null'],
+          [exec_state, varchar(256), 'null'],
+          [exec_behavior, varchar(4096), 'null'],
+          [exected, varchar(1024), 'null'],
+          [unexected, varchar(1024), 'null'],
+          [issue_time, varchar(64), 'null'],
+          [unid, varchar(128), not null],
+          [position, varchar(64), 'null'],
+          [create_time, varchar(64), 'null']
+        ]
+        INDICES: [
+          # [field_name, unique/nonunique]
+        ]

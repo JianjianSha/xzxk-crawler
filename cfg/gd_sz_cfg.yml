@@ -1,0 +1,51 @@
+DATABASES:
+  QZProperty: 
+    HOST: 192.168.2.195
+    USER: qzdata
+    PWD: qzdata.admin
+    # NAME: xxx
+
+    TABLES:
+      AdminLicense:
+        FIELDS: [
+          ['id', 'int identity(1,1)', 'not null primary key'],
+          ['al_recordid', 'varchar(128)', 'not null'],   # record id, unique  1
+          ['al_doc_no', 'varchar(400)', 'null'],        # 行政许可决定文书号      2
+          ['al_proj_name', 'varchar(400)', 'null'],     # 项目名称              3
+          ['al_review_type', 'varchar(200)', 'null'],   # 审批类别              4
+          ['al_main_type', 'varchar(200)', 'null'],     # 主体类型              5
+          ['al_addr', 'varchar(300)', 'null'],          # 住所                6
+          ['al_legal_charge_person_pair', 'varchar(600)', 'null'],       # content           7
+          ['al_establish_date', 'datetime', 'not null'],      # 成立日期      8
+          ['al_relative_person', 'varchar(400)', 'null'],     # 行政相对人名称  9
+          ['al_creditcode', 'varchar(128)', 'null'],           # 统一社会信用代码  10	
+          ['al_code', 'varchar(9)', 'null'],                  # 组织机构代码    11
+          ['al_register_code', 'varchar(128)', 'null'],        # 工商登记码   12
+          ['al_tax_reg_no', 'varchar(50)', 'null'],           # 税务登记号    13
+          ['al_id_no', 'varchar(128)', 'null'],                # 居民身份证号码  14
+          ['al_legal_charge_person', 'varchar(200)', 'null'], # 法定代表人(负责人)姓名  15
+          ['al_s_date', 'datetime', 'not null'],              # 许可决定日期   16
+          ['al_t_date', 'varchar(64)', 'not null'],              # 许可截止期    18
+          ['al_organ', 'varchar(200)', 'null'],               # 许可机关      19
+          ['al_area_code', 'varchar(50)', 'null'],            # 地方编码      25         
+          ['al_status', 'varchar(100)', 'null'],              # 当前状态 0 -> normal, 1->cancel(che xiao)  26
+          ['al_remark', 'varchar(300)', 'null'],              # 备注          27
+          ['al_zzyxqx', 'varchar(100)', 'null'],              #               28
+          ['al_createtime', 'datetime', 'not null'],          #               29
+          ['al_updatetime', 'datetime', 'not null'],           #               30
+        ]
+        INDICES: [
+          # ['al_recordid', 'unique'],         # 1: unique
+          # ['al_creditcode', 'nonunique'],       # 0: nonunique
+          # ['al_code', 0]
+        ]
+
+PROJECTS:
+  NAME: gd.sz
+
+WEB:
+    URL_0: https://amr.sz.gov.cn/outer/xzxk/loading_xzxk_list.do
+    URL_1: https://amr.sz.gov.cn/outer/xzxk/getXZXKDetail.do?id=%s
+    TABLE_NAME: [
+      QZProperty.AdminLicense
+    ]

@@ -7,4 +7,4 @@ source activate
 #  3. launch task
 #  4. and so on..
 
-python './start.py'
+python './task_start.py'

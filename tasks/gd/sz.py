@@ -2,7 +2,7 @@ from urllib import request, parse
 from datetime import datetime
 import os
 from framework.crawl.lst_dtl import LSTDTLCrawler
-from projects import CFG_DIR
+from tasks import CFG_DIR
 
 cfg_file = os.path.join(CFG_DIR, 'gd_sz_cfg.yml')
 cache_file = os.path.join(CFG_DIR, 'gd_sz_cfg.yml')

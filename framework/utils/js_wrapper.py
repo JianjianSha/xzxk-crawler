@@ -3,13 +3,19 @@ import os
 
 
 class js_ctx:
-    def __init__(self, file):
-        self.file = file
+    def __init__(self, *files, workspace=None):
+        self.workspace = workspace
+        self.files = files
+        assert len(files) > 0
 
     def __enter__(self):
-        with open(self.file, encoding='utf-8') as f:
-            self.f = f.read()
-        return execjs.get(execjs.runtime_names.Node).compile(self.f)
+        for i in range(len(self.files)):
+            with open(self.files[i], mode='r', encoding='utf-8') as f:
+                if i == 0:
+                    content = f.read()
+                else:
+                    content += f.read()
+        return execjs.get(execjs.runtime_names.Node).compile(content, cwd=self.workspace)
 
     def __exit__(self, *args):
         pass

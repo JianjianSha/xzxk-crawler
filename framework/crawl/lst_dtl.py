@@ -217,18 +217,31 @@ class MSCrawler:
     def __init__(self, cfg_file, is_master):
         self.is_master = is_master
         self.cfg   = load(cfg_file)
+        self.cache = load(cache_file)
+        self.inst_name = self.cfg.PROJECT.INST_NAME
 
         redis_url = self.cfg.PROJECT.REDIS.URL
         self.redis = redis.Redis.from_url(redis_url)
         self.redis_key_prefix = self.cfg.PROJECT.REDIS.KEY_PREFIX
         self.redis_key = self.redis_key_prefix + "dtl_args"
         self.redis_pg_index = self.redis_key_prefix + "pg_idx"
-
+        self.run_mode = self.cfg.PROJECT.RUN_MODE
 
         self.redis_arg_sep = self.cfg.PROJECT.REDIS.ARG_SEP
         self.lst_url = self.cfg.WEB.URL_0
         self.dtl_url = self.cfg.WEB.URL_1
         self.db_name, self.tb_name = self.cfg.WEB.TABLES[0].split('.')
+
+        if is_master:
+            self.pg_index = self.redis.get(self.redis_key_prefix+"page:%d" % self.inst_name)
+            if not self.pg_index:
+                self._get_page_atomic()
+                if not self.pg_index:
+                    self._get_page_atomic()
+        else:
+            self.arg = self.redis.get(self.redis_key_prefix+"arg:%d" % self.inst_name)
+            
+            
 
         self.dba = {}
         
@@ -262,7 +275,7 @@ class MSCrawler:
 
         if self.is_master:
             self._master_prepare()
-            while self._master_run():
+            while self._master_run() >= 0:
                 info = '%s (master) spider finished scraping the ' \
                        'list-page %d at %s' % (self.cfg.PROJECT.NAME, 
                                                self.pg_index, datetime.now())
@@ -270,14 +283,36 @@ class MSCrawler:
                 # self.logger.info(info)
 
                 if not alive.value:
+                    print('interrupted by user...')
+                    # exit by user interruption
                     break
+                # get next page index
+                self._get_page_atomic()
+
+
+            self.redis.set(self.redis_key_prefix+"page:%d" % self.inst_name, 0)
             self.logger.info('%s (master) spider: task completed~')
         else:
-            while True:
-                self._slave_run()
+            records = []
+            while self._get_arg():
+                record = self._slave_run()
+                if record:
+                    records.append(record)
+                self.arg = None
                 print('%s (slave) is working now, %s' % (self.cfg.PROJECT.NAME, datetime.now()))
                 if not alive.value:
+                    print('exit soon since interrupted by user...')
                     break
+
+                if len(records) == 10:
+                    self._insert_batch(records)
+                    records.clear()
+
+            if records:
+                self._insert_batch(records)
+            # reset cache-key to None when this app exitting normally 
+            #   (exit by itself other than action comes from external world)
+            self.redis.delete(self.redis_key_prefix+"arg:%d" % self.inst_name)
 
         
     def _master_prepare(self):
@@ -292,42 +327,72 @@ class MSCrawler:
         pg_index = pipe.execute()
         if pg_index:
             self.pg_index = int(pg_index[0]) - 1
+            # cache up page index for this task instance
+            if self.pg_index > 0:
+                self.redis.set(self.redis_key_prefix+"page:%d" % self.inst_name, self.pg_index)
         else:
             print('failed to get page index atomicly, please check first')
+            # raise RuntimeError
+
+    def _get_arg(self):
+        if self.arg:
+            return True
+
+        while self.arg is None:
+            print('%s (slave: %d) is waiting for arg' % (self.cfg.PROJECT.NAME, self.inst_name))
+            arg = self.redis.blpop(self.redis_key, 2)
+            if arg and len(arg) == 2:
+                self.arg = str(arg[1], encoding='utf-8')
+            if not alive.value:
+                print('interrupted by user, please wait for ending work...')
+                break
+
+        if self.arg:
+            # if already got an arg, even though had been interrupted by user at the same time,
+            #   it still go on to complete the detail task, and after this, close this app then.
+            # no matter what happens, cache up it after an arg being released
+            self.redis.set(self.redis_key_prefix+"arg:%d" % self.inst_name, self.arg)
+            return True # get an arg
+
+        return False    # interrupted by user
 
 
     def _slave_run(self):
-        records = []
         fail_number = 0
-        while len(records) < 10:
-            arg = self.redis.blpop(self.redis_key, 30)
-            if arg:
-                arg = str(arg[1], encoding='utf-8')
-                args = arg.split(self.redis_arg_sep)
-                url = self.dtl_url % (*args,)
-                record = self._dtl(url, args)
-                if record:
-                    # self.redis.watch(self.redis_key_prefix+arg)
-                    # val = self.redis.get(self.redis_key_prefix+arg) or 0
-                    # pipe = self.redis.pipeline(transaction=True)
-                    # pipe.multi()
-                    # pipe.set(self.redis_key_prefix+arg, int(val)+1)
-                    # pipe.execute()
-                    # self.redis.unwatch(self.redis_key_prefix+arg)
-                    self.redis.incr(self.redis_key_prefix+arg)
+        max_num = 5 if self.run_mode == 'release' else 1
+        while fail_number < max_num:
 
-                    records.append(record)
-                    fail_number = 0
-                else:
-                    fail_number += 1
+            args = self.arg.split(self.redis_arg_sep)
+            if '%s' in self.dtl_url:
+                url = self.dtl_url % (*args,)
+            else:
+                url = self.dtl_url
+            record = self._dtl(url, args)
+            if isinstance(record, tuple):
+                # self.redis.watch(self.redis_key_prefix+arg)
+                # val = self.redis.get(self.redis_key_prefix+arg) or 0
+                # pipe = self.redis.pipeline(transaction=True)
+                # pipe.multi()
+                # pipe.set(self.redis_key_prefix+arg, int(val)+1)
+                # pipe.execute()
+                # self.redis.unwatch(self.redis_key_prefix+arg)
+
+
+                # self.redis.incr(self.redis_key_prefix+arg)
+
+                return record
             else:
                 fail_number += 1
 
-            if fail_number >= 10:
-                print('%s (slave) failed exceeding 10 times, please check'
-                      ' the log info and do some debugging before continuing to work')
-                break
+        print('%s (slave: %d) failed exceeding %d times, please check'
+              ' log info and debug before continuing'
+              % (self.cfg.PROJECT.NAME, self.inst_name, max_num))
+
+        print('sleep 300s... \n(if interrupted this app, please wait until wakeup)')
+        time.sleep(300)
+        return None
         
+    def _insert_batch(self, records):
         if records:
             # save to database
             try:
@@ -343,20 +408,23 @@ class MSCrawler:
 
 
     def _master_run(self):
+        '''
+        return empty-list: task success, but no data returned
+                            (such as task completed, or no data on some web page)
+        return None: task failed
+        return list of args(strings): task success, with data returned
+        '''
+        args = self._lst()
 
-        self._get_page_atomic()
+        if args and args[0]:
+            self.redis.rpush(self.redis_key, args)
+            return 1
 
-        if self.pg_index == 0:
-            self._get_page_atomic()
+        if args is None:
+            return -1
 
-        url_args = self._lst()
-
-        if not url_args:
-            return False
-
-        self.redis.rpush(self.redis_key, 
-                         *[self.redis_arg_sep.join(arg) for arg in url_args])
-
-        self.pg_index += 1
-        self.redis.set(self.redis_pg_index, self.pg_index)
-        return True
+        print('no data returned from %s at page %d' % (self.lst_url, self.pg_index))
+        
+        print('sleep 300s... \n(if interrupted this app, please wait until wakeup)')
+        time.sleep(300)
+        return 0

@@ -38,6 +38,33 @@ def insert_sql(tb_name, scheme):
         'getdate()' * auto_gen_time_num if auto_gen_time_num else '')
     return sql
 
+def update_sql(tb_name, fields, indices, record):
+    auto_gen_time_num = 0
+    for field in scheme[::-1]:
+        if field[0].endswith('time'):
+            auto_gen_time_num += 1
+        else:
+            break
+    where = None
+    for index in indices:
+        if 'unique' in index:
+            where = index[0]
+            break
+    assert where is not None
+
+    idx = -1
+    for i in range(len(record))
+        if where in fields[i+1]:
+            idx = i
+            break
+    assert idx >= 0
+
+    sql = ' '.join(
+        ['%s=%s' % (k1, k2) for k1, k2 in zip(
+            fields[1:], record+tuple(['getdate()']*auto_gen_time_num))])
+    sql = "update %s set %s where %s=%s" % (tb_name, sql, where, record[idx])
+    return sql
+
 class TempDBA:
     def __init__(self, dba, db_name):
         self.dba = dba
@@ -95,4 +122,13 @@ class DBA:
                              database=self.database) as conn:
             with conn.cursor() as cursor:
                 cursor.executemany(sql, records)
+                conn.commit()
+
+    def update(self, sql, record):
+        with pymssql.connect(host=self.host,
+                             user=self.user,
+                             password=self.password,
+                             database=self.database) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(sql)
                 conn.commit()

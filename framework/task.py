@@ -14,7 +14,7 @@ import time
 class Task(Process):
     def __init__(self, name, type, alive):
         super(Task, self).__init__()
-        mod = importlib.import_module('projects.'+name)
+        mod = importlib.import_module('tasks.'+name)
         if type == 'standalone':
             cls_ = getattr(mod, 'Crawler')
             self.instance = cls_()
@@ -30,7 +30,7 @@ class Task(Process):
     #     self.run()
 
 def task_Win(name, type, alive):
-    mod = importlib.import_module('projects.'+name)
+    mod = importlib.import_module('tasks.'+name)
     if type == 'standalone':
         cls_ = getattr(mod, 'Crawler')
         instance = cls_()
@@ -49,8 +49,8 @@ class TaskContainer:
         self.alive = Value('b', True)
         self.tasks = []
 
-        for k in self.cfg.PROJECTS:
-            v = self.cfg.PROJECTS[k]
+        for k in self.cfg.TASKS:
+            v = self.cfg.TASKS[k]
             if not v.ACTIVE:
                 continue
 

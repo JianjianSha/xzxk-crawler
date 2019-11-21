@@ -1,4 +1,4 @@
-PROJECTS:
+TASKS:
   zj.nb:    # module name of crawler
     ACTIVE: 0
     TYPE: 'cluster.slave'  # standalone, cluster.master, cluster.slave

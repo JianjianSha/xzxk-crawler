@@ -10,8 +10,8 @@ A spider system implemented with python currently is released. If don't want to 
 conda env update -f environment.yaml
 ```
 This command is based on `base` env.
-## 2. Configure projects
-Populate configuration files for corresponding projects. Refer to `cfg/template_cfg.yml` for details
+## 2. Configure tasks
+Populate configuration files for corresponding tasks. Refer to `cfg/template_cfg.yml` for details
 ## 3. Mode
 There are `standalone` and `cluster` two modes now. If use cluster mode, please overwrite the project's type with `cluster.master` or `cluster.slave` in `cfg/cfg.yml` for all instances
 ## 4. Start

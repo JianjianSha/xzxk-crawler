@@ -131,7 +131,7 @@ dmypy.json
 
 # custom ignore items
 log/*
-cfg/*.yml
-!cfg/cfg.yml
+# cfg/*.yml
+# !cfg/cfg.yml
 !log/readme.md
 .vscode
