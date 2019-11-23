@@ -21,6 +21,7 @@ def create_table_sql(tb_name, scheme, indices=None):
         for index in indices:
             sql += """\ncreate {0} nonclustered index {1}_idx on {2} 
                     ({1} asc);""".format(index[1], index[0], tb_name)
+    print(sql)
     return sql
 
 def insert_sql(tb_name, scheme):
@@ -40,7 +41,7 @@ def insert_sql(tb_name, scheme):
 
 def update_sql(tb_name, fields, indices, record):
     auto_gen_time_num = 0
-    for field in scheme[::-1]:
+    for field in fields[::-1]:
         if field[0].endswith('time'):
             auto_gen_time_num += 1
         else:
@@ -53,16 +54,31 @@ def update_sql(tb_name, fields, indices, record):
     assert where is not None
 
     idx = -1
-    for i in range(len(record))
+    for i in range(len(record)):
         if where in fields[i+1]:
             idx = i
             break
     assert idx >= 0
 
-    sql = ' '.join(
-        ['%s=%s' % (k1, k2) for k1, k2 in zip(
-            fields[1:], record+tuple(['getdate()']*auto_gen_time_num))])
-    sql = "update %s set %s where %s=%s" % (tb_name, sql, where, record[idx])
+    sql = None
+    for k1, k2 in zip(
+        fields[1:], 
+        record+tuple(['getdate()']*auto_gen_time_num)):
+        if not k2 or k1[0] == where:
+            continue
+        if sql:
+            if k2 == 'getdate()':
+                sql +=", %s=%s" % (k1[0], k2)
+            else:
+                sql +=", %s='%s'" % (k1[0], k2)
+        else:
+            sql = "%s='%s'" % (k1[0], k2)
+    # sql = ', '.join(
+    #     ["%s='%s'" % (k1[0], k2) for k1, k2 in zip(
+    #      fields[1:], 
+    #      record+tuple(['getdate()']*auto_gen_time_num))  
+    #      if k2 and k1[0] != where])
+    sql = "update %s set %s where %s='%s'" % (tb_name, sql, where, record[idx])
     return sql
 
 class TempDBA:
@@ -124,7 +140,7 @@ class DBA:
                 cursor.executemany(sql, records)
                 conn.commit()
 
-    def update(self, sql, record):
+    def update(self, sql):
         with pymssql.connect(host=self.host,
                              user=self.user,
                              password=self.password,

@@ -217,7 +217,7 @@ class MSCrawler:
     def __init__(self, cfg_file, is_master):
         self.is_master = is_master
         self.cfg   = load(cfg_file)
-        self.cache = load(cache_file)
+        # self.cache = load(cache_file)
         self.inst_name = self.cfg.PROJECT.INST_NAME
 
         redis_url = self.cfg.PROJECT.REDIS.URL
@@ -234,12 +234,18 @@ class MSCrawler:
 
         if is_master:
             self.pg_index = self.redis.get(self.redis_key_prefix+"page:%d" % self.inst_name)
-            if not self.pg_index:
+            if self.pg_index is None:
                 self._get_page_atomic()
-                if not self.pg_index:
+                if self.pg_index == 0:
+                    self._get_page_atomic()
+            else:
+                self.pg_index = int(self.pg_index)
+                if self.pg_index == 0:
                     self._get_page_atomic()
         else:
             self.arg = self.redis.get(self.redis_key_prefix+"arg:%d" % self.inst_name)
+            if self.arg and not isinstance(self.arg, str):
+                self.arg = str(self.arg, 'utf-8')
             
             
 
@@ -268,10 +274,10 @@ class MSCrawler:
                 tb = db.TABLES[tb_name]
                 if not self.dba[db_name].select(check_table_sql(tb_name))[0]:
                     self.dba[db_name].execute(
-                        create_table_sql(tb_name, tb.FIELDS))
+                        create_table_sql(tb_name, tb.FIELDS, tb.INDICES))
 
     def run(self, args):
-        alive = args[0] if isinstance(args, tuple) else args
+        self.alive = args[0] if isinstance(args, tuple) else args
 
         if self.is_master:
             self._master_prepare()
@@ -282,25 +288,36 @@ class MSCrawler:
                 print(info)
                 # self.logger.info(info)
 
-                if not alive.value:
+                if not self.alive.value:
                     print('interrupted by user...')
                     # exit by user interruption
                     break
                 # get next page index
                 self._get_page_atomic()
 
-
-            self.redis.set(self.redis_key_prefix+"page:%d" % self.inst_name, 0)
+            if not self.alive.value: 
+                # only when quitted by user interruption, reset page index to 0.
+                # any other cases all represent task failing, so it needs to 
+                #   reserve the page index in cache, indicating the place 
+                #   from where the rescraping will start next time, no matter 
+                #   at this page index the scraping task successes(last list-page) 
+                #   or fails(web page exception) actually.
+                self.redis.set(self.redis_key_prefix+"page:%d" % self.inst_name, 0)
             self.logger.info('%s (master) spider: task completed~')
         else:
             records = []
+            record = None           # save the temporary record
             while self._get_arg():
                 record = self._slave_run()
                 if record:
                     records.append(record)
+                
+                if record is None:      # task failed
+                    break               
+
                 self.arg = None
                 print('%s (slave) is working now, %s' % (self.cfg.PROJECT.NAME, datetime.now()))
-                if not alive.value:
+                if not self.alive.value:
                     print('exit soon since interrupted by user...')
                     break
 
@@ -310,9 +327,9 @@ class MSCrawler:
 
             if records:
                 self._insert_batch(records)
-            # reset cache-key to None when this app exitting normally 
-            #   (exit by itself other than action comes from external world)
-            self.redis.delete(self.redis_key_prefix+"arg:%d" % self.inst_name)
+            # reset cache-key to None when task succeed, at any situation
+            if record:
+                self.redis.set(self.redis_key_prefix+"arg:%d" % self.inst_name, '')
 
         
     def _master_prepare(self):
@@ -343,7 +360,7 @@ class MSCrawler:
             arg = self.redis.blpop(self.redis_key, 2)
             if arg and len(arg) == 2:
                 self.arg = str(arg[1], encoding='utf-8')
-            if not alive.value:
+            if not self.alive.value:
                 print('interrupted by user, please wait for ending work...')
                 break
 
@@ -383,14 +400,16 @@ class MSCrawler:
                 return record
             else:
                 fail_number += 1
+                print("failed once again, wait for 10s please...")
+                time.sleep(30)
 
         print('%s (slave: %d) failed exceeding %d times, please check'
               ' log info and debug before continuing'
               % (self.cfg.PROJECT.NAME, self.inst_name, max_num))
 
-        print('sleep 300s... \n(if interrupted this app, please wait until wakeup)')
+        print('sleep 60s... \n(if interrupted this app, please wait until wakeup)')
         time.sleep(300)
-        return None
+        return tuple()
         
     def _insert_batch(self, records):
         if records:
@@ -415,9 +434,9 @@ class MSCrawler:
         return list of args(strings): task success, with data returned
         '''
         args = self._lst()
-
+        # print('args returned from list page: ', args)
         if args and args[0]:
-            self.redis.rpush(self.redis_key, args)
+            self.redis.rpush(self.redis_key, *args)
             return 1
 
         if args is None:

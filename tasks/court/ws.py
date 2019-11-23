@@ -9,6 +9,7 @@ import os
 import time
 import socket
 import base64
+import gzip
 import json
 import base64
 from framework.utils.env import IS_WINDOWS
@@ -210,9 +211,13 @@ class DCrawler(MSCrawler):
                                       "still fails" % (self.lst_url, self.pg_index))
                     return None
                 
-                self.cookies.update(resp.cookies.items())
+                # self.cookies.update(resp.cookies.items())
 
-                json_ = resp.json()
+                try:
+                    json_ = resp.json()
+                except Exception as e:
+                    print('failed to jsonize response: %s, page index %d' % (resp.text, self.pg_index))
+                    return None
                 if self.run_mode != 'release':
                     print(json_)
                     return None
@@ -223,6 +228,10 @@ class DCrawler(MSCrawler):
                         json_ = decipher(json_['result'], 
                                          json_['secretKey'], 
                                          time.strftime("%Y%m%d"))
+                        # print("after deciphered: ", json_)
+                        # print(type(json_))
+                        json_ = json.loads(json_)
+                        # print("after deserialized: ", json_)
                         if 'queryResult' in json_:
                             json_ = json_['queryResult']
                             if 'resultList' in json_:
@@ -256,7 +265,7 @@ class DCrawler(MSCrawler):
                                                     self.logger.exception('%s (master: %d) faid to insert the record: %r' % 
                                                                           (self.cfg.PROJECT.NAME, self.inst_name, r))
                                                     print('%s (master: %d) faid to insert the record: %r' % 
-                                                          (self.cfg.PROJECT.NAME, self.inst_name, r))
+                                                          (self.cfg.PROJECT.NAME, self.inst_name, (r[0],r[4])))
 
                 return [r[4] for r in records if r[4]]  # doc id
 
@@ -276,69 +285,87 @@ class DCrawler(MSCrawler):
         county = ''
         try:
             for k in json_:
+                v = k   # be aware that `k` should not be compared with value starts with 's' below:
+                if k[0] == 's':
+                    k = k[1:]
                 if k == "1":
-                    t[0] = json_[k]     # 案件名称
+                    t[0] = json_[v]     # 案件名称
                 elif k == "2":
-                    t[1] = json_[k]     # 法院名称
+                    t[1] = json_[v]     # 法院名称
                 elif k == "3" or k == "36" or k == '37' or k == '38' or k == '39' or k == '40':
-                    t[2] = json_[k]     # 审理法院
+                    t[2] = json_[v]     # 审理法院
                 elif k == '4':
-                    t[3] = json_[k]     # 法院层级
-                elif k == "5" or k == 'rowKey':
-                    t[4] = json_[k]
+                    t[3] = json_[v]     # 法院层级
+                elif k == "5" or k == 'rowkey':
+                    t[4] = json_[v]
                 elif k == "6":
-                    t[5] = json_[k]     # 文书类型
+                    t[5] = json_[v]     # 文书类型
                 elif k == "7":
-                    t[6] = json_[k]     # 案号
+                    t[6] = json_[v]     # 案号
                 elif k == '8':
-                    t[7] = json_[k]     # 案件类型
+                    t[7] = json_[v]     # 案件类型
                 elif k == '9' or k == '10':
-                    t[8] = json_[k]     # 审判程序
+                    t[8] = json_[v]     # 审判程序
                 elif k == '11' or k == '12' or k == '13' or k == '14' or k == '15' or k == '16':
-                    t[9] = json_[k]     # 案由
+                    t[9] = json_[v]     # 案由
                 elif k == '17':
-                    t[10] = json_[k]    # 当事人
+                    t[10] = json_[v]    # 当事人
                 elif k == '18':
-                    t[11] = json_[k]    # 审判人员
+                    t[11] = json_[v]    # 审判人员
                 elif k == '19':
-                    t[12] = json_[k]    # 律师
+                    t[12] = json_[v]    # 律师
                 elif k == '20':
-                    t[13] = json_[k]    # 律所
+                    t[13] = json_[v]    # 律所
                 elif k == '21':
-                    t[14] = json_[k]    # 全文
+                    t[14] = json_[v]    # 全文
                 elif k == '31' or k == 'cprq':
-                    t[15] = json_[k]    # 裁判日期
+                    t[15] = json_[v]    # 裁判日期
                 elif k == '32':
-                    t[16] = json_[k]    # 不公开理由
+                    t[16] = json_[v]    # 不公开理由
                 elif k == '33':
-                    province = json_[k] # # 法院省份 
+                    province = json_[v] # # 法院省份 
                 elif k == '34':
-                    city = json_[k]
+                    city = json_[v]
                 elif k == '35':
-                    county = json_[k]
+                    county = json_[v]
                 elif k == '41':
-                    t[18] = json_[k]    # 发布日期
+                    t[18] = json_[v]    # 发布日期
                 elif k == '42':
                     if t[15] == 0:
-                        t[15] = json_[k]    # 裁判年份
+                        t[15] = json_[v]    # 裁判年份
                 elif k == '43':
-                    t[19] = json_[k]    # 公开类型
+                    t[19] = json_[v]    # 公开类型
                 elif k == '44':
-                    t[20] = json_[k]    # 案例等级
+                    t[20] = json_[v]    # 案例等级
                 elif k == '46':
-                    t[21] = json_[k]    # 结案方式
+                    t[21] = json_[v]    # 结案方式
                 elif k == '48':
-                    t[22] = json_[k]    # 上网时间
+                    t[22] = json_[v]    # 上网时间
                 elif k == 'qwContent':
-                    t[23] = json_[k]
+                    t[23] = json_[v]
             t[17] = '%s#%s#%s' % (province, city, county)
             if t[23] and isinstance(t[23], str):
-                t[23] = str(base64.b64encode(t[23].encode('utf-8')), 'utf-8')
+                try:
+                    cnt = base64.b64encode(gzip.compress(t[23].encode('utf-8')))
+                    t[23] = str(cnt, 'utf-8')
+                    # t[23] = str(base64.b64encode(t[23].encode('utf-8')), 'utf-8')
+                except Exception as ee:
+                    self.logger.exception("compress & base encode error: ", str(e))
+                    t[23] = t[23].replace("'", "''")
             if not t[4] and doc_id:
                 t[4] = doc_id
-            return tuple('%r'%i if i!= 0 else '' for i in t)
+
+            for i in range(len(t)):
+                if isinstance(t[i], list) and t[i] and isinstance(t[i][0], str):
+                    t[i] = '.|.'.join(t[i]).replace("'", "''")
+                elif isinstance(t[i], str):
+                    t[i] = t[i].replace("'", "''")
+                else:
+                    t[i] = ''
+                
+            return tuple(t)
         except Exception as e:
-            self.logger.exception('failed to parse the item in list page: %r' % json_)
+            self.logger.exception('failed to parse the item in list page: %r, error: %s' % (json_, str(e)))
         return None
 
     def _request(self, url, data):
@@ -351,10 +378,11 @@ class DCrawler(MSCrawler):
                 resp = self.session.post(url, 
                                          data=data, 
                                          cookies=self.cookies, 
-                                         timeout=20)
+                                         timeout=30)
                 if resp.status_code != 200:
                     num += 1
                     print("status_code %d: preparing to update cookies" % resp.status_code)
+                    time.sleep(30)
                     # it may need to update cookie
                     self._update_cookies()
                 else:
@@ -380,46 +408,119 @@ class DCrawler(MSCrawler):
                                   "still fails" % (self.dtl_url, args[0]))
                 return None
             
-            self.cookies.update(resp.cookies.items())
+            # self.cookies.update(resp.cookies.items())
 
-            json_ = resp.json()
-            if self.run_mode != 'release':
-                print(json_)
+            try:
+                json_ = resp.json()
+            except Exception as e:
+                print("failed to jsonize response: %s, doc id %s" % (resp.text, args[0]))
                 return None
+            
             
             if json_:
                 if 'result' in json_ and 'secretKey' in json_:
                     json_ = decipher(json_['result'], 
                                      json_['secretKey'], 
                                      time.strftime("%Y%m%d"))
+                    json_ = json.loads(json_)
+                    if self.run_mode != 'release':
+                        print(json_)
+                        return None
                     r = self.json2tuple_ws(json_, doc_id=args[0])
                     if r is None:
-                        self.logger.error("failed to parse data: %r" % json_)
-                        return None
+                        print("failed to parse json data, please check in log file, and here it go on...")
                     else:
-                        scheme = self.cfg.DATABASES[self.db_name].TABLES[self.tb_name].FIELDS
+                        tb = self.cfg.DATABASES[self.db_name].TABLES[self.tb_name]
+                        scheme = tb.FIELDS
+                        
                         try:
                             self.dba[self.db_name].insert(
                                 insert_sql(self.tb_name, scheme), [r])
-                            return tuple()
-                        except Exception as e:
-                            if 'duplicate key' in str(e):
+                        except Exception as ie:
+                            if 'duplicate key' in str(ie):
                                 print('change action from insert to update')
                                 try:
+                                    indices = tb.INDICES
                                     self.dba[self.db_name].update(
-                                        update_sql(self,tb_name, scheme, 
-                                                self.cfg.DATABASES[self.db_name].TABLES[self.tb_name].INDICES, 
-                                                r))
-                                    return tuple()
-                                except Exception as e:
-                                    self.logger("failed to update wenshu (%s), error: %s"
-                                                % (r[4], str(e)))
+                                        update_sql(self.tb_name, scheme, indices, r))
+                                except Exception as ue:
+                                    self.logger.exception("failed to update wenshu, error: %s, and record is: %s"
+                                                % (str(ue), r))
                                     print("failed to update wenshu %s" % r[4])
                             else:
                                 print('failed to insert wenshu %s' % r[4])
-                                self.logger("failed to insert wenshu (%s), error: %s"
-                                            % (r[4], str(e)))
-        return None
+                                self.logger.exception("failed to insert wenshu (%s), error: %s"
+                                            % (r[4], str(ie)))
+                else:
+                    return None     # web error -> task failure
+            else:
+                return None         # web error -> task failure
+        # only failed to scrape web page can be seen as task failed, other errors
+        #   such convesion error or saving DB error is not truely failure, because we can
+        #   recover data from log file later
+        time.sleep(3)
+        return tuple()      
 
             
 
+    #     dataItemStr : {
+		# "s1" : "案件名称",
+		# "s2" : "法院名称",
+		# "s3" : "审理法院",
+		# "s4" : "法院层级",
+		# "s5" : "文书ID",
+		# "s6" : "文书类型",
+		# "s7" : "案号",
+		# "s8" : "案件类型",
+		# "s9" : "审判程序",
+		# "s10" : "审判程序",
+		# "s11" : "案由",
+		# "s12" : "案由",
+		# "s13" : "案由",
+		# "s14" : "案由",
+		# "s15" : "案由",
+		# "s16" : "案由",
+		# "s17" : "当事人",
+		# "s18" : "审判人员",
+		# "s19" : "律师",
+		# "s20" : "律所",
+		# "s21" : "全文",
+		# "s22" : "首部",   -- ignore start --
+		# "s23" : "诉讼记录",
+		# "s24" : "诉控辩",
+		# "s25" : "事实",
+		# "s26" : "理由",
+		# "s27" : "判决结果",
+		# "s28" : "尾部",
+		# "s29" : "法律依据", 
+		# "s30" : "",       -- ignore end --
+		# "s31" : "裁判日期",
+		# "s32" : "不公开理由",
+		# "s33" : "法院省份",
+		# "s34" : "法院地市",
+		# "s35" : "法院区县",
+		# "s36" : "审理法院",
+		# "s37" : "审理法院",
+		# "s38" : "审理法院",
+		# "s39" : "审理法院",
+		# "s40" : "审理法院",
+		# "s41" : "发布日期",
+		# "s42" : "裁判年份",
+		# "s43" : "公开类型",
+		# "s44" : "案例等级",
+		# "s45" : "关键字",
+		# "s46" : "结案方式",
+		# "s47" : "法律依据",
+		# "s48" : "上网时间",
+		# "s49" : "案例等级排序",
+		# "s50" : "法院层级排序",
+		# "s51" : "裁判日期排序",
+		# "s52" : "审判程序排序",
+		# "s53" : "当事人段",
+		# "s54" : "其他",
+		# "cprqStart" : "裁判日期开始时间",
+		# "cprqEnd" : "裁判日期结束时间",
+		# "swsjStart" : "上网时间开始时间",
+		# "swsjEnd" : "上网时间结束时间",
+		# "flyj" : "法律依据",
+		# "cprq" : "裁判日期"

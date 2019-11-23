@@ -8,4 +8,4 @@ TASKS:
   
   court.ws:
     ACTIVE: 1
-    TYPE: 'cluster.master'
+    TYPE: 'cluster.slave'

@@ -19,7 +19,16 @@ class index:
         return g
 
 class ruishu:
+    # def __init__(self):
+    #     self.time = None
+    #     self.cookies = None
+
     def GET(self):
+        # if self.time is not None:
+        #     if time.time() - self.time < 50.0:
+        #         return self.cookies
+        # self.time = self.cookies = None
+        
         with js_ctx(
             os.path.join(os.path.dirname(__file__), 'ruishu/crack.js'),
             workspace=os.path.join(os.path.dirname(__file__), 'ruishu')
@@ -38,6 +47,8 @@ class ruishu:
                               encoding='utf-8') as f:
                         cookies = f.read()  # HM4hUBT0dDOn80
                         if 'HM4hUBT0dDOn80S' in cookies or 'HM4hUBT0dDOn80T' in cookies:
+                            # self.time = time.time()
+                            # self.cookies = cookies
                             return cookies
                         else:
                             num += 1
