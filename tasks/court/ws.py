@@ -29,16 +29,7 @@ cfg_file = os.path.join(CFG_DIR, 'court_ws_cfg.yml')
 
 
 
-def get_cookies_from_jsdom_1():
-    '''integration mode'''
-    import service.api as sapi
-    ruishu = sapi.ruishu()
-    return ruishu.GET()
 
-
-def get_cookies_from_jsdom_2(url):
-    resp = requests.get(url)
-    return resp.text
 
 
 def get_cookies_from_splash(splash_url):
@@ -120,10 +111,8 @@ class DCrawler(MSCrawler):
         self.splash_url = self.cfg.PROJECT.SPLASH.URL
         self.url = parse.urlparse(self.lst_url)
         self.session = requests.Session()
-        if self.cfg.PROJECT.JSDOM.MODE == 'integration':
-            self.jsdom_cookies_getter = get_cookies_from_jsdom_1
-        elif self.cfg.PROJECT.JSDOM.MODE == 'webservice':
-            self.jsdom_cookies_getter = get_cookies_from_jsdom_2
+        if self.cfg.PROJECT.JSDOM.MODE == 'webservice':
+            self.jsdom_url = self.cfg.PROJECT.JSDOM.URL
 
         scheme = self.cfg.DATABASES[self.db_name].TABLES[self.tb_name].FIELDS
 
@@ -177,12 +166,23 @@ class DCrawler(MSCrawler):
         self.session.headers = self.headers
         self._update_cookies()
 
+    def get_cookies_from_jsdom_1(self):
+        '''integration mode'''
+        import service.api as sapi
+        ruishu = sapi.ruishu()
+        return ruishu.GET()
+
+
+    def get_cookies_from_jsdom_2(self):
+        resp = requests.get(self.jsdom_url)
+        return resp.text
+
     def _update_cookies(self):
         # update cookie via splash
         # self.cookies.update(get_cookies_from_splash(self.splash_url))
 
         # update cookie via jsdom
-        cookies = self.jsdom_cookies_getter()
+        cookies = self.get_cookies_from_jsdom_2() if self.cfg.PROJECT.JSDOM.MODE == 'webservice' else self.get_cookies_from_jsdom_1()
         if cookies.startswith('[empty]'):
             self.logger.error("jsdom(%s) cookies error" % self.cfg.PROJECT.JSDOM.MODE)
             print("jsdom(%s) cookies error" % self.cfg.PROJECT.JSDOM.MODE)

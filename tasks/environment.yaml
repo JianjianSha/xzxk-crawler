@@ -25,5 +25,6 @@ dependencies:
   - pycryptodome
   - pip:
     - pyexecjs==1.5.1
+    - cheroot
 prefix: /home/jian/sha/tool/miniconda3
 

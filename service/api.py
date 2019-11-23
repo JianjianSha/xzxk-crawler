@@ -19,9 +19,8 @@ class index:
         return g
 
 class ruishu:
-    # def __init__(self):
-    #     self.time = None
-    #     self.cookies = None
+    def __init__(self):
+        self.version = 0
 
     def GET(self):
         # if self.time is not None:
