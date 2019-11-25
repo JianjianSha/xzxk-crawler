@@ -13,7 +13,7 @@ import gzip
 import json
 import base64
 from framework.utils.env import IS_WINDOWS
-from framework.dba import update_sql, insert_sql
+from framework.dba import update_sql, insert_sql, select_sql
 
 
 if IS_WINDOWS:
@@ -131,9 +131,11 @@ class DCrawler(MSCrawler):
             'HM4hUBT0dDOn80T': ''
         }
         self.lst_data = {
+            # 'pageId': 'bb059ae562ac691f970afb54dc91e833',
+            's8': '02',
             'cfg': 'com.lawyee.judge.dc.parse.dto.SearchDataDsoDTO@queryDoc',
             'pageNum': 1,
-            'sortFields': 's51:desc',       # s50: court cascade; s51: judge date
+            'sortFields': 's50:desc',       # s50: court cascade; s51: judge date
             'ciphertext': '',
             'pageSize': 5,
             'queryCondition': [],
@@ -141,6 +143,7 @@ class DCrawler(MSCrawler):
             '_RequestVerificationToken': req_verify_token() 
         }
         self.dtl_data = {
+            
             'docId': '',
             'ciphertext': '',
             '__RequestVerificationToken': req_verify_token(),
@@ -211,7 +214,8 @@ class DCrawler(MSCrawler):
                                       "still fails" % (self.lst_url, self.pg_index))
                     return None
                 
-                # self.cookies.update(resp.cookies.items())
+                if resp.cookies:
+                    self.cookies.update(resp.cookies)
 
                 try:
                     json_ = resp.json()
@@ -262,11 +266,11 @@ class DCrawler(MSCrawler):
                                                         insert_sql(self.tb_name, scheme), [r]
                                                     )
                                                 except Exception as e:
-                                                    self.logger.exception('%s (master: %d) faid to insert the record: %r' % 
+                                                    self.logger.exception('%s (master: %d) failed to insert the record: %r' % 
                                                                           (self.cfg.PROJECT.NAME, self.inst_name, r))
-                                                    print('%s (master: %d) faid to insert the record: %r' % 
+                                                    print('%s (master: %d) failed to insert the record: %r' % 
                                                           (self.cfg.PROJECT.NAME, self.inst_name, (r[0],r[4])))
-
+                time.sleep(5)
                 return [r[4] for r in records if r[4]]  # doc id
 
 
@@ -394,12 +398,23 @@ class DCrawler(MSCrawler):
                 print('failed to request %s, error: %s' % (url, str(e)))
         return resp
 
+    def _check_dtl(self, uid):
+        '''check if details are already existed'''
+        t = self.dba[self.db_name].select(select_sql(self.db_name, ('uid', uid)))
+        if t[15] == '' and t[17] == '' and t[24] == '':
+            return False
+        return True
+
     def _dtl(self, url, args):
         '''
         return None: task failed
         return empty-tuple record: task successed, but no data needs returning
         return nonempty record: task successed, with data returned
         '''
+        if self._check_dtl(args[0]):
+            print("uid %s already exists in database")
+            return tuple()
+
         self.dtl_data['docId'] = args[0]
         resp = self._request(self.dtl_url, self.dtl_data)
         if resp:
@@ -408,6 +423,7 @@ class DCrawler(MSCrawler):
                                   "still fails" % (self.dtl_url, args[0]))
                 return None
             
+            print("response cookies: %s" % resp.cookies.items())
             # self.cookies.update(resp.cookies.items())
 
             try:

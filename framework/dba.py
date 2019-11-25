@@ -24,6 +24,11 @@ def create_table_sql(tb_name, scheme, indices=None):
     print(sql)
     return sql
 
+def select_sql(tb_name, where):
+    '''where is a tuple'''
+    sql = "select top 1 * from %s where %s='%s'" % (tb_name, where[0], where[1])
+    return sql
+
 def insert_sql(tb_name, scheme):
     auto_gen_time_num = 0
     for field in scheme[::-1]:

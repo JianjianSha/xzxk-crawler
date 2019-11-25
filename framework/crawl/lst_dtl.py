@@ -439,11 +439,11 @@ class MSCrawler:
             self.redis.rpush(self.redis_key, *args)
             return 1
 
-        if args is None:
-            return -1
+        # if args is None:
+        #     return -1
 
         print('no data returned from %s at page %d' % (self.lst_url, self.pg_index))
         
-        print('sleep 300s... \n(if interrupted this app, please wait until wakeup)')
-        time.sleep(300)
+        print('sleep 60s... \n(if interrupted this app, please wait until wakeup)')
+        time.sleep(60)
         return 0
