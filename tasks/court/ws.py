@@ -7,6 +7,7 @@ from urllib import request, parse
 import requests
 import os
 import time
+import random
 import socket
 import base64
 import gzip
@@ -186,6 +187,10 @@ class DCrawler(MSCrawler):
 
         # update cookie via jsdom
         cookies = self.get_cookies_from_jsdom_2() if self.cfg.PROJECT.JSDOM.MODE == 'webservice' else self.get_cookies_from_jsdom_1()
+        num = 1
+        while num < 3 and cookies.startswith('[empty]'): 
+            cookies = self.get_cookies_from_jsdom_2() if self.cfg.PROJECT.JSDOM.MODE == 'webservice' else self.get_cookies_from_jsdom_1()
+            num += 1
         if cookies.startswith('[empty]'):
             self.logger.error("jsdom(%s) cookies error" % self.cfg.PROJECT.JSDOM.MODE)
             print("jsdom(%s) cookies error" % self.cfg.PROJECT.JSDOM.MODE)
@@ -289,6 +294,7 @@ class DCrawler(MSCrawler):
         county = ''
         try:
             for k in json_:
+                # in list_page, 1,2,7,9,10,26,31,43,44 are returned fields
                 v = k   # be aware that `k` should not be compared with value starts with 's' below:
                 if k[0] == 's':
                     k = k[1:]
@@ -373,24 +379,51 @@ class DCrawler(MSCrawler):
         return None
 
     def _request(self, url, data):
+        '''request implementation for lst and dtl'''
         num = 1
         resp = None
         max_num = 5 if self.run_mode == 'release' else 2
         while num <= max_num:
             try:
+                if self.cfg.PROJECT.PROXY_IP:
+                    self.session.headers['User-Agent'] = random.choice(self.user_agents)
+                    ip = random.choice(self.ips)
+                    s = ip[2] + '://' + ip[0] + ':' + str(ip[1])
+                    proxies = {'http': s, 'https': s}
+                else:
+                    proxies = None
                 data['ciphertext'] = cipher()
                 resp = self.session.post(url, 
                                          data=data, 
                                          cookies=self.cookies, 
+                                         proxies=proxies,
                                          timeout=30)
-                if resp.status_code != 200:
+                if resp.status_code == 202:
                     num += 1
                     print("status_code %d: preparing to update cookies" % resp.status_code)
                     time.sleep(30)
                     # it may need to update cookie
                     self._update_cookies()
-                else:
+                elif resp.status_code == 200:
                     return resp
+                else:
+                    if resp.status_code >= 400 and self.cfg.PROJECT.PROXY_IP:
+                        no = self.invalid_ips.get(s, 0)
+                        if no >= 5:
+                            self.ips.remove(ip)
+                            del self.invalid_ips[s]
+                            if len(self.ips) < 1000:
+                                print("proxy ip number is two little, "
+                                      "please wait for more fresh proxy ips")
+                                new_ips=self.xici.dynamic_get(total=100)
+                                
+                                self.ips = list(ew_ips.union(self.ips))
+                        else:
+                            self.invalid_ips[s] = no + 1
+                        print("status_code: %d, it recommends you switch proxy ip"
+                              % (self.cfg.PROJECT.PROXY_IP, resp.status_code))
+                    print("it will sleep 10s, and please analyse error in time")
+                    time.sleep(10)
             except socket.timeout as e:
                 num += 1
                 print('socket timeout error. trying %d' % num)
@@ -400,8 +433,11 @@ class DCrawler(MSCrawler):
 
     def _check_dtl(self, uid):
         '''check if details are already existed'''
-        t = self.dba[self.db_name].select(select_sql(self.db_name, ('uid', uid)))
-        if t[15] == '' and t[17] == '' and t[24] == '':
+        t = self.dba[self.db_name].select(select_sql(self.tb_name, ('uid', uid)))
+        # in list_page, 1,2,7,9,10,26,31,43,44 are returned fields
+        if t[15] == '' and t[17] == '' and t[24] == '' and t[12] == '' \
+            and t[3] == '' and t[6] == '' and t[8] == '' and t[10] == '' \
+                and t[11] == '':
             return False
         return True
 
@@ -423,8 +459,9 @@ class DCrawler(MSCrawler):
                                   "still fails" % (self.dtl_url, args[0]))
                 return None
             
-            print("response cookies: %s" % resp.cookies.items())
-            # self.cookies.update(resp.cookies.items())
+            # print("response cookies: %s" % resp.cookies.items())
+            if resp.cookies:
+                self.cookies.update(resp.cookies)
 
             try:
                 json_ = resp.json()

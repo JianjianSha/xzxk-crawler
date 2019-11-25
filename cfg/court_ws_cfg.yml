@@ -2,6 +2,7 @@ PROJECT:
   NAME: court.ws     #
   INST_NAME: 3
   RUN_MODE: release      # release, debug/test
+  PROXY_IP: True
   REDIS:          # for distributing crawler, only redis is used 
     URL: 'redis://192.168.2.106:6379/0'
     KEY_PREFIX: 'court:ws:'

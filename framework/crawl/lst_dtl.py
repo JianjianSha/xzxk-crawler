@@ -10,6 +10,7 @@ import os
 from datetime import datetime
 from queue import Queue, Full, Empty
 import threading
+from .proxy import user_agents, GetProxyIP_XICI
 from ..log import get_logger
 import time
 import redis
@@ -232,6 +233,13 @@ class MSCrawler:
         self.dtl_url = self.cfg.WEB.URL_1
         self.db_name, self.tb_name = self.cfg.WEB.TABLES[0].split('.')
 
+        if self.cfg.PROJECT.PROXY_IP:
+            self.user_agents = user_agents
+            self.xici = GetProxyIP_XICI(self.redis)
+            self.invalid_ips = {}       # ips and their failure number
+            self.ips = self.xici.load(type='ha') + self.xici.load(type='nt')
+            self.ips = [ip.split(',') for ip in self.ips]
+
         if is_master:
             self.pg_index = self.redis.get(self.redis_key_prefix+"page:%d" % self.inst_name)
             if self.pg_index is None:
@@ -280,6 +288,7 @@ class MSCrawler:
         self.alive = args[0] if isinstance(args, tuple) else args
 
         if self.is_master:
+            
             self._master_prepare()
             while self._master_run() >= 0:
                 info = '%s (master) spider finished scraping the ' \
