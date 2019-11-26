@@ -10,7 +10,7 @@ import os
 from datetime import datetime
 from queue import Queue, Full, Empty
 import threading
-from .proxy import user_agents, GetProxyIP_XICI
+from .proxy import user_agents, GetProxyIP_XICI, check_ip
 from ..log import get_logger
 import time
 import redis
@@ -228,18 +228,17 @@ class MSCrawler:
         self.redis_pg_index = self.redis_key_prefix + "pg_idx"
         self.run_mode = self.cfg.PROJECT.RUN_MODE
 
+        # if this field is set to True, you must promise only one master instance
+        #   mt most is running at the same time.
+        #   (currently it do not support multi-master)
+        self.reset_condition = False
+
         self.redis_arg_sep = self.cfg.PROJECT.REDIS.ARG_SEP
         self.lst_url = self.cfg.WEB.URL_0
         self.dtl_url = self.cfg.WEB.URL_1
         self.db_name, self.tb_name = self.cfg.WEB.TABLES[0].split('.')
 
-        if self.cfg.PROJECT.PROXY_IP:
-            self.user_agents = user_agents
-            self.xici = GetProxyIP_XICI(self.redis)
-            self.invalid_ips = {}       # ips and their failure number
-            self.ips = self.xici.load(type='ha') + self.xici.load(type='nt')
-            self.ips = [ip.split(',') for ip in self.ips]
-
+        
         if is_master:
             self.pg_index = self.redis.get(self.redis_key_prefix+"page:%d" % self.inst_name)
             if self.pg_index is None:
@@ -266,6 +265,36 @@ class MSCrawler:
                 'log', '%s.log' % self.cfg.PROJECT.NAME)
         )
 
+        if self.cfg.PROJECT.PROXY_IP:
+            self.user_agents = user_agents
+            self.xici = GetProxyIP_XICI(self.redis)
+            # self.invalid_ips = {}       # ips and their failure number
+            self.ips = self.xici.load(type='ha') + self.xici.load(type='nt')
+            self.ips = [tuple(ip.split(',')) for ip in self.ips]
+            # print("get proxy ips: %s" % self.ips)
+            # raise ValueError("useful proxy ips is too less: %s" % self.ips)
+
+            print("check proxy ips' validity...")
+            valid_ips = []
+            valid_ips2 = []
+            for ip in self.ips:
+                check_ip(ip, valid_ips)
+                time.sleep(0.5)
+                if valid_ips:
+                    print(ip, " is useful")
+                    valid_ips2.append(ip)
+                else:
+                    print(ip, " is usefless")
+                valid_ips.clear()
+            
+            if len(valid_ips2) < len(self.ips):
+                print("please refresh proxy ips")
+                self.logger.info("some proxy ips are useless, please refresh proxy ip pool")
+            self.ips = valid_ips2
+            if len(self.ips) < 5:
+                raise ValueError("useful proxy ips is too less: %s" % self.ips)
+
+
         check = False
         for db_name in self.cfg.DATABASES:
             db = self.cfg.DATABASES[db_name]
@@ -291,8 +320,8 @@ class MSCrawler:
             
             self._master_prepare()
             while self._master_run() >= 0:
-                info = '%s (master) spider finished scraping the ' \
-                       'list-page %d at %s' % (self.cfg.PROJECT.NAME, 
+                info = '%s (master %d) spider finished scraping the ' \
+                       'list-page %d at %s' % (self.cfg.PROJECT.NAME, self.inst_name,
                                                self.pg_index, datetime.now())
                 print(info)
                 # self.logger.info(info)
@@ -301,6 +330,12 @@ class MSCrawler:
                     print('interrupted by user...')
                     # exit by user interruption
                     break
+
+                if self.reset_condition:
+                    print("%s (master %d)preparing to reset conditions..."
+                          % (self.cfg.PROJECT.NAME, self.inst_name))
+                    self._reset_lst()
+
                 # get next page index
                 self._get_page_atomic()
 
@@ -340,6 +375,16 @@ class MSCrawler:
             if record:
                 self.redis.set(self.redis_key_prefix+"arg:%d" % self.inst_name, '')
 
+    def _reset_lst(self):
+        self.reset_condition = False
+        old_pg_index = self.pg_index
+        self._get_page_atomic()
+        if old_pg_index < self.pg_index:    # pg_index had not been reset this epoch
+            # reset page index
+            self.redis.set(self.redis_key_prefix+"page:%d" % self.inst_name, 1)
+            self._get_page_atomic()
+
+            
         
     def _master_prepare(self):
         pass

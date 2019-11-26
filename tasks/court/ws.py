@@ -8,6 +8,7 @@ import requests
 import os
 import time
 import random
+import itertools
 import socket
 import base64
 import gzip
@@ -167,8 +168,45 @@ class DCrawler(MSCrawler):
             #           'VcB21vIWgxrb2T10VOOYxsv8Bna1uTV.8p6H1kruNF.m26Pb1rGzplNktyKJiR1Qg2FfVRKuR2ix7jWInOX1OZmgcmkSiAqGQHZs2VpQv5a.'\
             #           '3bivEWJf7fZPIBWbH5RNMzrEh6rk6nm1lRxb3QR8RF1TlydDMQBU74DpvrZF01da1j5BoSgLUQfuAMq3VMSrCI.yU_6qIJz2d6CgBx1FpTfoME8OQ'
         }
+
+        if is_master:
+            self.sort_group = ['s50:desc', 's51:desc', 's52:desc']
+            filter_group = {'s42':list(range(2019, 1995, -1)), 's4': [], 's8': [], 's6': [], 's11': []}
+            with open('tasks/court/full_text_dict.json', 'r') as f:
+                ft_dict = json.load(f)
+                fycj = ft_dict.get('fycj', None)
+                ay = ft_dict.get('ay', None)
+                wslx = ft_dict.get('wslx', None)
+                ajlx = ft_dict.get('ajlx', None)
+                if fycj:
+                    filter_group['s4'] = [i['code'] for i in fycj]
+                
+                if ay:
+                    filter_group['s11'] = [i['id'] for i in ay if i['parent'] == '#']
+                
+                if wslx:
+                    filter_group['s6'] = [i['code'] for i in wslx]
+                
+                if ajlx:
+                    filter_group['s8'] = [i['code'] for i in ajlx]
+
+            # do not use two kinds of filters at the same time,
+            #   but in the future, this rule may be broken
+            self.filter_group = list(itertools.chain(*[[(k, v) for v in filter_group[k]] for k in filter_group]))
+            self.sort_filter_idx = 0
+            # m = len(self.sort_group)
+            # n = len(self.filter_group[])
+            # 0 <= self.sort_filter_idx < m*n
+            self.lst_data['sortFields'] = self.sort_group[self.sort_filter_idx // len(self.filter_group)]
+            fk, fv = self.filter_group[self.sort_filter_idx % len(self.filter_group)]
+            self.lst_data[fk] = fv
+
+            
+            
+
         self.session.headers = self.headers
         self._update_cookies()
+
 
     def get_cookies_from_jsdom_1(self):
         '''integration mode'''
@@ -232,19 +270,34 @@ class DCrawler(MSCrawler):
                     return None
 
                 records = []
+                
                 if json_:
                     if 'result' in json_ and 'secretKey' in json_:
                         json_ = decipher(json_['result'], 
                                          json_['secretKey'], 
                                          time.strftime("%Y%m%d"))
+
+                        
                         # print("after deciphered: ", json_)
                         # print(type(json_))
                         json_ = json.loads(json_)
                         # print("after deserialized: ", json_)
+
+                        
                         if 'queryResult' in json_:
                             json_ = json_['queryResult']
                             if 'resultList' in json_:
                                 list_ = json_['resultList']
+                                if len(list_) == 0:
+                                    # on this web page, the list has no items(maybe its the last page)
+                                    self.reset_condition = True
+                                    info_ = "get json data, but queryResult is empty list, " \
+                                            "current condition: (sort->%s,%s->%s) reset query condition"\
+                                            % (self.sort_group[self.sort_filter_idx // len(self.filter_group)],
+                                               *self.filter_group[self.sort_filter_idx % len(self.filter_group)])
+                                    print(info_)
+                                    self.logger.info(info_)
+                                    return []
                                 for item_ in list_:
                                     record = self.json2tuple_ws(item_)
                                     if record is not None:
@@ -275,7 +328,16 @@ class DCrawler(MSCrawler):
                                                                           (self.cfg.PROJECT.NAME, self.inst_name, r))
                                                     print('%s (master: %d) failed to insert the record: %r' % 
                                                           (self.cfg.PROJECT.NAME, self.inst_name, (r[0],r[4])))
+
                 time.sleep(5)
+                if self.pg_index >= 100 and len(records) == 0:
+                    self.reset_condition = True
+                    info_ = "page index is very large and no data is gotten, so reset query condition, " \
+                            "current condition: (sort->%s,%s->%s) reset query condition"\
+                            % (self.sort_group[self.sort_filter_idx // len(self.filter_group)],
+                                *self.filter_group[self.sort_filter_idx % len(self.filter_group)])
+                    print(info_)
+                    self.logger.info(info_)
                 return [r[4] for r in records if r[4]]  # doc id
 
 
@@ -388,6 +450,7 @@ class DCrawler(MSCrawler):
                 if self.cfg.PROJECT.PROXY_IP:
                     self.session.headers['User-Agent'] = random.choice(self.user_agents)
                     ip = random.choice(self.ips)
+                    # print('randomly choice ip: ', ip)
                     s = ip[2] + '://' + ip[0] + ':' + str(ip[1])
                     proxies = {'http': s, 'https': s}
                 else:
@@ -408,20 +471,15 @@ class DCrawler(MSCrawler):
                     return resp
                 else:
                     if resp.status_code >= 400 and self.cfg.PROJECT.PROXY_IP:
-                        no = self.invalid_ips.get(s, 0)
-                        if no >= 5:
-                            self.ips.remove(ip)
-                            del self.invalid_ips[s]
-                            if len(self.ips) < 10:
-                                print("proxy ip number is two little, "
-                                      "please wait for more fresh proxy ips")
-                                new_ips=self.xici.dynamic_get(total=100)
-                                
-                                self.ips = list(ew_ips.union(self.ips))
-                                if len(self.ips) < 10:
-                                    raise ValueError("proxy ip error: cannot get more proxy ips")
-                        else:
-                            self.invalid_ips[s] = no + 1
+                        self.ips.remove(ip)
+                        if len(self.ips) < 3:
+                            print("proxy ip number is two little, "
+                                    "please wait for more fresh proxy ips")
+                            new_ips=self.xici.dynamic_get(total=100)
+                            
+                            self.ips = list(ew_ips.union(self.ips))
+                            if len(self.ips) < 5:
+                                raise ValueError("proxy ip error: cannot get more proxy ips")
                         print("status_code: %d, it recommends you switch proxy ip"
                               % (self.cfg.PROJECT.PROXY_IP, resp.status_code))
                     print("it will sleep 10s, and please analyse error in time")
@@ -516,7 +574,19 @@ class DCrawler(MSCrawler):
         time.sleep(3)
         return tuple()      
 
-            
+
+    def _reset_lst(self):
+        super(DCrawler, self)._reset_lst()
+        self.sort_filter_idx += 1
+        self.lst_data['sortFields'] = self.sort_group[self.sort_filter_idx // len(self.filter_group)]
+        fk, fv = self.filter_group[self.sort_filter_idx % len(self.filter_group)]
+        self.lst_data[fk] = fv
+
+        pass
+
+    # filter: [{"key":"s38","value":"100"},{"key":"s11","value":"1"},{"key":"s4","value":"2"},{"key":"s42","value":"2019"},{"key":"s8","value":"02"}]
+    # sort: s51->desc(裁判日期, cprq), s50->desc(法院层级,fycj), s52->desc( 审判程序,spcx)
+    # filter: s38->(审理法院,slfy), s11->(案由,ay), s4->(法院层级, fycj), s42->(裁判年份), s8->(案件类型, ajlx), s6->(wslx)
 
     #     dataItemStr : {
 		# "s1" : "案件名称",

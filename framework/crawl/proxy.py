@@ -260,4 +260,10 @@ class GetProxyIP_XICI:
                 raise ValueError("must provide param: `type`")
         
         ips = redis_cli.lrange(key, 0, -1)
-        return ips
+        return [str(ip, encoding='utf-8') for ip in ips]
+
+
+if __name__ == '__main__':
+    redis = redis.Redis.from_url('redis://192.168.2.106:6379/0')
+    xici = GetProxyIP_XICI()
+    xici.run()

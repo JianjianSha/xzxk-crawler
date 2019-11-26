@@ -14,8 +14,8 @@ PROJECT:
     URL: 'http://192.168.4.106:8080/ruishu'             # only valid in `webservice` mode
 
 WEB:
-  URL_0: http://wenshu.court.gov.cn/website/parse/rest.q4w
-  URL_1: http://wenshu.court.gov.cn/website/parse/rest.q4w
+  URL_0: https://wenshu.court.gov.cn/website/parse/rest.q4w
+  URL_1: https://wenshu.court.gov.cn/website/parse/rest.q4w
   TABLES: [
     QZTemp.Wenshu
   ]
@@ -39,7 +39,7 @@ DATABASES:
           [doc_type, varchar(128), 'null'],      # 文书类型
           [case_no, varchar(128), 'null'],      # 案号
           [case_type, varchar(128), 'null'],    # 案件类型
-          [judge_program, varchar(128), 'null'],  #
+          [judge_program, varchar(128), 'null'],  # 审判程序
           [reason, varchar(512), 'null'],  # 案由
           [litigant, varchar(2048), 'null'],  # 当事人
           [judger, varchar(512), 'null'],  # 审判人员
