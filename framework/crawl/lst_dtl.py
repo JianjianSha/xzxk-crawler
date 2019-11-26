@@ -274,23 +274,24 @@ class MSCrawler:
             # print("get proxy ips: %s" % self.ips)
             # raise ValueError("useful proxy ips is too less: %s" % self.ips)
 
-            print("check proxy ips' validity...")
-            valid_ips = []
-            valid_ips2 = []
-            for ip in self.ips:
-                check_ip(ip, valid_ips)
-                time.sleep(0.5)
-                if valid_ips:
-                    print(ip, " is useful")
-                    valid_ips2.append(ip)
-                else:
-                    print(ip, " is usefless")
-                valid_ips.clear()
+            # print("check proxy ips' validity...")
+            # valid_ips = []
+            # valid_ips2 = []
+            # for ip in self.ips:
+            #     check_ip(ip, valid_ips)
+            #     time.sleep(0.5)
+            #     if valid_ips:
+            #         print(ip, " is useful")
+            #         valid_ips2.append(ip)
+            #     else:
+            #         print(ip, " is usefless")
+            #     valid_ips.clear()
             
-            if len(valid_ips2) < len(self.ips):
-                print("please refresh proxy ips")
-                self.logger.info("some proxy ips are useless, please refresh proxy ip pool")
-            self.ips = valid_ips2
+            # if len(valid_ips2) < len(self.ips):
+            #     print("please refresh proxy ips")
+            #     self.logger.info("some proxy ips are useless, please refresh proxy ip pool")
+            # self.ips = valid_ips2
+            
             if len(self.ips) < 5:
                 raise ValueError("useful proxy ips is too less: %s" % self.ips)
 

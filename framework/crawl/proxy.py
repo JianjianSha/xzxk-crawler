@@ -50,7 +50,7 @@ def check_ip(ip, ip_list):
             print("ip %r is invalid, resp status_code %d" 
                   % (ip, resp.status_code))
     except Exception as e:
-        pass
+        print("exception when check ip: ", ip)
 
 
 class GetProxyIP_XICI:
@@ -78,14 +78,14 @@ class GetProxyIP_XICI:
         if not batch:
             self._save(nt=self.ips)
             
-    def _run(self, url, max_page=50, batch=True):
+    def _run(self, url_t, max_page=50, batch=True):
         num = 0         # count times for continuous request-failing
         self.pg_index = 1
         self.ips.clear()
-        suffix = "ha" if "nn" in url else "nt"
+        suffix = "ha" if "nn" in url_t else "nt"
         while self.pg_index < max_page:
             print("(%s) handling page index: %d" % (suffix, self.pg_index))
-            url = url % self.pg_index
+            url = url_t % self.pg_index
             resp = requests.get(url, headers=self.headers)
             resp.encoding = resp.apparent_encoding
 
@@ -149,12 +149,12 @@ class GetProxyIP_XICI:
         nt_ips = self._dynamic_get(self.nt_url, 100, start_page)
         return set(ha_ips+nt_ips)
 
-    def _dynamic_get(self, url, total, start_page):
+    def _dynamic_get(self, url_t, total, start_page):
         self.pg_index = start_page
         ips = []
 
         while len(ips) < total:
-            url = url % self.pg_index
+            url = url_t % self.pg_index
             print("request %s for proxy ips" % url)
             resp = requests.get(url)
             resp.encoding = resp.apparent_encoding
@@ -265,5 +265,5 @@ class GetProxyIP_XICI:
 
 if __name__ == '__main__':
     redis = redis.Redis.from_url('redis://192.168.2.106:6379/0')
-    xici = GetProxyIP_XICI()
+    xici = GetProxyIP_XICI(redis)
     xici.run()

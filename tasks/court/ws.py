@@ -134,7 +134,7 @@ class DCrawler(MSCrawler):
         }
         self.lst_data = {
             # 'pageId': 'bb059ae562ac691f970afb54dc91e833',
-            's8': '02',
+            # 's8': '02',
             'cfg': 'com.lawyee.judge.dc.parse.dto.SearchDataDsoDTO@queryDoc',
             'pageNum': 1,
             'sortFields': 's50:desc',       # s50: court cascade; s51: judge date
@@ -160,7 +160,8 @@ class DCrawler(MSCrawler):
             'Accept': 'application/json, text/javascript, */*; q=0.01',
             'Accept-Encoding': 'gzip, deflate',
             'Accept-Language': 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7',
-            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.87 Safari/537.36',
+            # 'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.87 Safari/537.36',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.186 Safari/537.36'
             # 'Cookie': 'HM4hUBT0dDOn80S=voCvUzhBCC64rRORu3DYJ355qXgnADLGi0Tzf2WbQ_VpG70.XcLZOYOF5nyu4j9k; '\
             #           'SESSION=33ed257b-d99f-4bb9-a75e-58b33f53a901; '\
             #           'HM4hUBT0dDOn80T=4jO19oukHhlssW720zCkKfp2MmSMbKm.0nH1Vic0K4dwUeSaPnh305zejNBfuXGPSA6Ai6IyP.'\
@@ -447,8 +448,8 @@ class DCrawler(MSCrawler):
         max_num = 5 if self.run_mode == 'release' else 2
         while num <= max_num:
             try:
-                if self.cfg.PROJECT.PROXY_IP:
-                    self.session.headers['User-Agent'] = random.choice(self.user_agents)
+                if self.cfg.PROJECT.PROXY_IP and self.ips:
+                    # self.session.headers['User-Agent'] = random.choice(self.user_agents)
                     ip = random.choice(self.ips)
                     # print('randomly choice ip: ', ip)
                     s = ip[2] + '://' + ip[0] + ':' + str(ip[1])
@@ -460,7 +461,7 @@ class DCrawler(MSCrawler):
                                          data=data, 
                                          cookies=self.cookies, 
                                          proxies=proxies,
-                                         timeout=30)
+                                         timeout=60)
                 if resp.status_code == 202:
                     num += 1
                     print("status_code %d: preparing to update cookies" % resp.status_code)
@@ -480,7 +481,7 @@ class DCrawler(MSCrawler):
                             self.ips = list(ew_ips.union(self.ips))
                             if len(self.ips) < 5:
                                 raise ValueError("proxy ip error: cannot get more proxy ips")
-                        print("status_code: %d, it recommends you switch proxy ip"
+                        print("use proxy ip (%r), status_code: %d, it recommends you switch proxy ip"
                               % (self.cfg.PROJECT.PROXY_IP, resp.status_code))
                     print("it will sleep 10s, and please analyse error in time")
                     time.sleep(10)
@@ -489,6 +490,12 @@ class DCrawler(MSCrawler):
                 print('socket timeout error. trying %d' % num)
             except Exception as e:
                 print('failed to request %s, error: %s' % (url, str(e)))
+                if 'Caused by ConnectTimeoutError' in str(e) or 'Cannot connect to proxy' in str(e):
+                    if self.cfg.PROJECT.PROXY_IP:
+                        self.ips.remove(ip)
+                        # if len(self.ips) < 2:
+                        #     raise ValueError("useful proxy ips too less")
+                time.sleep(1)
         return resp
 
     def _check_dtl(self, uid):
@@ -576,13 +583,12 @@ class DCrawler(MSCrawler):
 
 
     def _reset_lst(self):
+        # return None
         super(DCrawler, self)._reset_lst()
         self.sort_filter_idx += 1
         self.lst_data['sortFields'] = self.sort_group[self.sort_filter_idx // len(self.filter_group)]
         fk, fv = self.filter_group[self.sort_filter_idx % len(self.filter_group)]
         self.lst_data[fk] = fv
-
-        pass
 
     # filter: [{"key":"s38","value":"100"},{"key":"s11","value":"1"},{"key":"s4","value":"2"},{"key":"s42","value":"2019"},{"key":"s8","value":"02"}]
     # sort: s51->desc(裁判日期, cprq), s50->desc(法院层级,fycj), s52->desc( 审判程序,spcx)
