@@ -412,12 +412,14 @@ class DCrawler(MSCrawler):
                         if no >= 5:
                             self.ips.remove(ip)
                             del self.invalid_ips[s]
-                            if len(self.ips) < 1000:
+                            if len(self.ips) < 10:
                                 print("proxy ip number is two little, "
                                       "please wait for more fresh proxy ips")
                                 new_ips=self.xici.dynamic_get(total=100)
                                 
                                 self.ips = list(ew_ips.union(self.ips))
+                                if len(self.ips) < 10:
+                                    raise ValueError("proxy ip error: cannot get more proxy ips")
                         else:
                             self.invalid_ips[s] = no + 1
                         print("status_code: %d, it recommends you switch proxy ip"
