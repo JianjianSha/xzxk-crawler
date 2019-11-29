@@ -271,6 +271,7 @@ class DCrawler(MSCrawler):
                     return None
 
                 records = []
+                new_records = []
                 
                 if json_:
                     if 'result' in json_ and 'secretKey' in json_:
@@ -313,6 +314,7 @@ class DCrawler(MSCrawler):
                                         self.dba[self.db_name].insert(
                                             insert_sql(self.tb_name, scheme), records
                                         )
+                                        new_records = records
                                     except Exception as e:
                                         self.logger.exception("%s (master: %d) data saving error. error: %s, "
                                                             "trying save once a time" % (self.cfg.PROJECT.NAME, 
@@ -324,6 +326,7 @@ class DCrawler(MSCrawler):
                                                     self.dba[self.db_name].insert(
                                                         insert_sql(self.tb_name, scheme), [r]
                                                     )
+                                                    new_records.append(r)
                                                 except Exception as e:
                                                     self.logger.exception('%s (master: %d) failed to insert the record: %r' % 
                                                                           (self.cfg.PROJECT.NAME, self.inst_name, r))
@@ -339,7 +342,7 @@ class DCrawler(MSCrawler):
                                 *self.filter_group[self.sort_filter_idx % len(self.filter_group)])
                     print(info_)
                     self.logger.info(info_)
-                return [r[4] for r in records if r[4]]  # doc id
+                return [r[4] for r in new_records if r[4]]  # doc id
 
 
         except Exception as e:

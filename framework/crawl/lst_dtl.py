@@ -291,7 +291,7 @@ class MSCrawler:
             #     print("please refresh proxy ips")
             #     self.logger.info("some proxy ips are useless, please refresh proxy ip pool")
             # self.ips = valid_ips2
-            
+
             if len(self.ips) < 5:
                 raise ValueError("useful proxy ips is too less: %s" % self.ips)
 
@@ -383,6 +383,7 @@ class MSCrawler:
         if old_pg_index < self.pg_index:    # pg_index had not been reset this epoch
             # reset page index
             self.redis.set(self.redis_key_prefix+"page:%d" % self.inst_name, 1)
+            self.redis.set(self.redis_pg_index, 1)
             self._get_page_atomic()
 
             
