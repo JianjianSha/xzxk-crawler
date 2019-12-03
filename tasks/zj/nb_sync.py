@@ -12,7 +12,7 @@ class Sync:
         with open(cache_file, 'r') as f:
             self.offset = int(f.readlines()[0].split(' ')[1])
         self.cfg = edict()
-        self.num = 0
+        self.last_id = 0
         with open(cfg_file, 'r', encoding='utf-8') as f:
             y = yaml.load(f)
             self.cfg.update(y)
@@ -37,11 +37,10 @@ class Sync:
                 ids = self.dba['QZProperty'].select_many(
                     'select id from Executee where unid = %s' % unid
                 )
-                
-                ids = ','.join(ids[1:])
-
+                ids = ','.join(str(i[0]) for i in ids[1:])
+                # print('ids:',ids)
                 self.dba['QZProperty'].execute(
-                    'delete from Executeee where id in (%s)' % ids
+                    'delete from Executee where id in (%s)' % ids
                 )
                 
             print('finish %d' % len(unids))
@@ -50,25 +49,26 @@ class Sync:
             )
 
     def run(self):
-        self._deduplicate()
-        # while self._get():
-        #     self._transform()
-        #     self._put()
-        #     self.offset += self.num
-        #     with open(self.cache_file, 'w') as f:
-        #         f.writelines(["offset %d" % self.offset])
-        #     print('offset %d at %s' % (self.offset, datetime.now()))
-        #     break
+        # self._deduplicate()
+        while self._get():
+            self._transform()
+            self._put()
+            self.offset = self.last_id
+            with open(self.cache_file, 'w') as f:
+                f.writelines(["offset %d" % self.offset])
+            print('offset %d at %s' % (self.offset, datetime.now()))
+            # break
 
 
     def _get(self):
         try:
-            self.num = 0
+            self.last_id = 0
             self.datas = self.dba['QZProperty'].select_many(
                 'select top %d * from Executee where id > %d' 
                 % (self.batch, self.offset))
-            self.num = len(self.datas)
-            return self.num > 0
+            if len(self.datas) > 0:
+                self.last_id = max(d[0] for d in self.datas)
+            return self.last_id
         except Exception as e:
             print('error: getting data from QZProperty.Executee from offset %d'
                   % self.offset)
@@ -84,7 +84,13 @@ class Sync:
                     code = code[8:17]
                 elif len(code) > 20:
                     code = code[:20]
-                data = -d[0], d[10], d[6], d[1], d[9], ct, ct, code
+                name = d[1]
+                if len(name) > 50:
+                    name = name[0:50]
+                    idx = name.find('(') if name.find('(') > 0 else name.find('（')
+                    if idx > 0:
+                        name = name[0:idx] 
+                data = -d[0], d[10], d[6], name, d[9], ct, ct, code
                 datas.append(data)
         except Exception as e:
             print('error: failed to transform data')
