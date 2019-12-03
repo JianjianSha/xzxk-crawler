@@ -593,6 +593,7 @@ class DCrawler(MSCrawler):
         fk, fv = self.filter_group[self.sort_filter_idx % len(self.filter_group)]
         self.lst_data[fk] = fv
 
+
     # filter: [{"key":"s38","value":"100"},{"key":"s11","value":"1"},{"key":"s4","value":"2"},{"key":"s42","value":"2019"},{"key":"s8","value":"02"}]
     # sort: s51->desc(裁判日期, cprq), s50->desc(法院层级,fycj), s52->desc( 审判程序,spcx)
     # filter: s38->(审理法院,slfy), s11->(案由,ay), s4->(法院层级, fycj), s42->(裁判年份), s8->(案件类型, ajlx), s6->(wslx)

@@ -1,0 +1,17 @@
+PROJECT:
+  NAME: zj.nb.sync
+  BATCH: 1
+  
+DATABASES:
+  INITIALIZE: False    # Check if table is exists in DB.
+  QZProperty:    # mssql.DB_NAME
+    HOST: 192.168.2.195
+    USER: qzdata
+    PWD: qzdata.admin
+
+  QZCourt:
+    HOST: 192.168.2.199
+    USER: qzdata
+    PWD: qzdata.admin
+
+

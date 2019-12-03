@@ -120,7 +120,13 @@ class DBA:
                 return cursor.fetchone()
 
     def select_many(self, sql):
-        pass
+        with pymssql.connect(host=self.host,
+                             user=self.user,
+                             password=self.password,
+                             database=self.database) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(sql)
+                return cursor.fetchall()
 
     def execute(self, sql):
         with pymssql.connect(host=self.host,
