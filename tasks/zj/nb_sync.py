@@ -98,6 +98,21 @@ class Sync:
         self.datas = datas
 
     def _put(self):
+        try:
+            
+            self.dba['QZCourt'].insert(
+                'insert into Zhixing (zx_id, zx_caseCode, zx_execCourtName, '
+                'zx_pname, zx_caseCreateTime, createTime, updateTime, status, '
+                'oc_code, zx_type) values (%s, %s, %s, %s, %s, %s, %s, 1, %s, 0)',
+                self.datas
+            )
+            return
+        except Exception as e:
+            print("error: failed to putting datas into QZCourt.zhixing")
+            print(str(e))
+            if 'duplicate key' not in str(e):
+                raise e
+
         for data in self.datas:
             try:
                 self.dba['QZCourt'].insert(
