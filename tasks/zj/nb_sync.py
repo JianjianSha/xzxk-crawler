@@ -6,6 +6,9 @@ from datetime import datetime
 
 
 class Sync:
+    '''
+    offset: 8320590
+    '''
     def __init__(self, cfg_file='cfg/zj_nb_sync_cfg.yml', 
                  cache_file='cfg/zj_nb_sync_cache.txt'):
         self.cache_file = cache_file
@@ -80,6 +83,8 @@ class Sync:
         try:
             for d in self.datas:
                 code = d[3].replace('-', '')
+                if any(ord(c) > 128 for c in code):
+                    code = '000000000'
                 if len(code) == 18:
                     code = code[8:17]
                 elif len(code) > 20:

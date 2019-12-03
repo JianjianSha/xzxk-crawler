@@ -470,15 +470,27 @@ class MSCrawler:
     def _insert_batch(self, records):
         if records:
             # save to database
+            scheme = self.cfg.DATABASES[self.db_name].TABLES[self.tb_name].FIELDS
+            sql = insert_sql(self.tb_name, scheme)
             try:
-                scheme = self.cfg.DATABASES[self.db_name].TABLES[self.tb_name].FIELDS
+                
                 self.dba[self.db_name].insert(
-                    insert_sql(self.tb_name, scheme), records
+                    sql, records
                 )
             except Exception as e:
                 self.logger.exception("%s (slave) data saving error. error: %s,"
-                                     "records: %r" % (self.cfg.PROJECT.NAME,
-                                                      str(e), records))
+                                      % (self.cfg.PROJECT.NAME, str(e)))
+
+                for r in records:
+                    try:
+                        self.dba[self.db_name].insert(
+                            sql, [r]
+                        )
+                    except Exception as ee:
+                        self.logger.exception("%s (slave %d) data saving error. error: %s,"
+                                              "record: %r" 
+                                              % (self.cfg.PROJECT.NAME, self.inst_name, str(e), r))
+
                 
 
 
