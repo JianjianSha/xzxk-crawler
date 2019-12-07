@@ -85,8 +85,11 @@ class Sync:
                 code = d[3].replace('-', '')
                 if any(ord(c) > 128 for c in code):
                     code = '000000000'
-                if len(code) == 18:
-                    code = code[8:17]
+                elif len(code) == 18:
+                    if '身份证' in d[2]:
+                        code = '000000000'
+                    else:
+                        code = code[8:17]
                 elif len(code) > 20:
                     code = code[:20]
                 name = d[1]

@@ -61,7 +61,7 @@ class CrawlerBase:
         }
 
     def _parse_lst(self, req):
-        resp = request.urlopen(req, timeout=20)
+        resp = request.urlopen(req, timeout=60)
         if resp.code != 200:
             return None
         page = resp.read().decode('utf-8', errors='ignore')
@@ -92,7 +92,7 @@ class CrawlerBase:
         return args
 
     def _parse_dtl(self, req):
-        resp = request.urlopen(req, timeout=20)
+        resp = request.urlopen(req, timeout=60)
         if resp.code != 200:
             print('resp http status is not 200. please refer to log for page content')
             self.logger.error('failed to get normal response from request %s, the '
@@ -191,7 +191,18 @@ class DCrawler(MSCrawler, CrawlerBase):
         while num < 5:
             try:
                 args = self._parse_lst(req)
-                return [self.redis_arg_sep.join(arg) for arg in url_args]
+                new_args = []
+                for arg in args:
+                    old = self.dba[self.db_name].select(
+                        "select unid from %s where unid='%s' and position='%s'"
+                        % (self.tb_name, arg[0], arg[1]))
+                    if not old:     # exist
+                        new_args.append(arg)
+                args = new_args
+                if args is not None:
+                    return [self.redis_arg_sep.join(arg) for arg in args]
+                else:
+                    num += 1
             except socket.timeout as e:
                 num += 1
                 self.logger.exception('socket timeout error, try again (%d trying)'
@@ -207,11 +218,12 @@ class DCrawler(MSCrawler, CrawlerBase):
 
     def _dtl(self, url, args):
         req = request.Request(url, headers=self.headers)
-
+        time.sleep(1)
         try:
             record = self._parse_dtl(req)
             if record:
                 record = tuple(record+args)
+            
             return record
         except Exception as e:
             self.logger.exception('%s (slave) Error %s. Url: %s' % (

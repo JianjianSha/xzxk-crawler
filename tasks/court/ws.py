@@ -171,8 +171,8 @@ class DCrawler(MSCrawler):
         }
 
         if is_master:
-            self.sort_group = ['s50:desc', 's51:desc', 's52:desc']
-            filter_group = {'s42':list(range(2019, 1995, -1)), 's4': [], 's8': [], 's6': [], 's11': []}
+            self.sort_group = ['s51:desc', 's50:desc', 's52:desc']
+            filter_group = {'s4': [], 's8': [], 's6': [], 's11': []}
             with open('tasks/court/full_text_dict.json', 'r') as f:
                 ft_dict = json.load(f)
                 fycj = ft_dict.get('fycj', None)
@@ -265,6 +265,13 @@ class DCrawler(MSCrawler):
                     json_ = resp.json()
                 except Exception as e:
                     print('failed to jsonize response: %s, page index %d' % (resp.text, self.pg_index))
+                    if self.pg_index > 50:
+                        info_ = "page index is very large and no data is gotten, so reset query condition, " \
+                            "current condition: (sort->%s,%s->%s) reset query condition"\
+                            % (self.sort_group[self.sort_filter_idx // len(self.filter_group)],
+                                *self.filter_group[self.sort_filter_idx % len(self.filter_group)])
+                        print(info_)
+                        self.reset_condition = True
                     return None
                 if self.run_mode != 'release':
                     print(json_)
@@ -334,7 +341,7 @@ class DCrawler(MSCrawler):
                                                           (self.cfg.PROJECT.NAME, self.inst_name, (r[0],r[4])))
 
                 time.sleep(5)
-                if self.pg_index >= 100 and len(records) == 0:
+                if self.pg_index >= 50 and len(records) == 0:
                     self.reset_condition = True
                     info_ = "page index is very large and no data is gotten, so reset query condition, " \
                             "current condition: (sort->%s,%s->%s) reset query condition"\

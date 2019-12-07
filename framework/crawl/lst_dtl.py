@@ -336,9 +336,9 @@ class MSCrawler:
                     print("%s (master %d)preparing to reset conditions..."
                           % (self.cfg.PROJECT.NAME, self.inst_name))
                     self._reset_lst()
-
-                # get next page index
-                self._get_page_atomic()
+                else:
+                    # get next page index
+                    self._get_page_atomic()
 
             if not self.alive.value: 
                 # only when quitted by user interruption, reset page index to 0.
@@ -413,7 +413,7 @@ class MSCrawler:
 
         while self.arg is None:
             print('%s (slave: %d) is waiting for arg' % (self.cfg.PROJECT.NAME, self.inst_name))
-            arg = self.redis.blpop(self.redis_key, 2)
+            arg = self.redis.blpop(self.redis_key, 60)
             if arg and len(arg) == 2:
                 self.arg = str(arg[1], encoding='utf-8')
             if not self.alive.value:

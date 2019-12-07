@@ -4,7 +4,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const jsdom = require("/home/jian/sha/src/python/crawler/administration/node_modules/jsdom");
 
 const fs = require("fs")
-// const axios = require("axios");
+const axios = require("/home/jian/sha/src/python/crawler/administration/node_modules/axios");
 
 // for the sake of executed in PyExecjs environment, all non-standard module are loaded in form of file stream directly to method 'execjs.compile'
 const { random, cipherText, DES3 } = require('./Decrypt.js');
@@ -31,7 +31,8 @@ function get_cookies_1() {
 }
 
 async function get_cookies_async() {
-    let indexUrl = 'http://wenshu.court.gov.cn/';
+    // let indexUrl = 'https://wenshu.court.gov.cn/';
+    let indexUrl = 'https://wenshu.court.gov.cn/'
     const cookieJar = new jsdom.CookieJar();
     let options = {
         runScripts: 'dangerously',
@@ -44,13 +45,44 @@ async function get_cookies_async() {
     // let HM4hUBT0dDOn80S = cookieJar.store.idx['wenshu.court.gov.cn']['/']['HM4hUBT0dDOn80S'].value;
     // let HM4hUBT0dDOn80T = cookieJar.store.idx['wenshu.court.gov.cn']['/']['HM4hUBT0dDOn80T'].value;
     let cookie = '';
-    cookieJar.getCookieString('http://wenshu.court.gov.cn/', (err, cookies) => {
+    cookieJar.getCookieString('https://wenshu.court.gov.cn/', (err, cookies) => {
         // if (err) {
         //     console.log(err);
         // }
         cookie = cookies;
     });
-    return cookie;
+    // return cookie;
+    console.log("first response cookie: "+cookie)
+
+    const resourceLoader = new jsdom.ResourceLoader({
+        strictSSL: false,
+        userAgent: "Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36",
+      });
+    const options2 = {
+        resources: resourceLoader,
+        runScripts: 'dangerously',
+        pretendToBeVisual: true,
+        virtualConsole: new jsdom.VirtualConsole(),
+        cookieJar: new jsdom.CookieJar(),
+      }
+      function cp(val){
+          if(val){
+          console.log(val);
+          }
+      }
+      
+      options2.cookieJar.setCookie(cookie, 'https://wenshu.court.gov.cn/',cp);
+
+    // ============================== request index ===================================
+    let dom2 = await jsdom.JSDOM.fromURL(indexUrl, options);
+    dom.window.close();
+    let cookie2 = '';
+    cookieJar.getCookieString('https://wenshu.court.gov.cn/', (err, cookies) => {
+        cookie2 = cookies;
+    });
+    return cookie2;
+
+
     // if (!cookie.includes('HM4hUBT0dDOn80S') || !cookie.includes('HM4hUBT0dDOn80T')) {
     //     console.log('Get cookie failed ');
     //     return;
@@ -92,7 +124,9 @@ async function get_cookies_async() {
 //# sourceMappingURL=ruishuCracker.js.map
 
 // test code, run 'node service/ruishu/crack.js'
-// get_cookies_async().then(console.log).catch(console.err);
+// get_cookies_async('').then(console.log).catch(console.err);
+
+get_cookies_async().then(console.log)
 
 function update_cookies() {
     
