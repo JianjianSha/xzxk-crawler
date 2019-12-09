@@ -1,5 +1,5 @@
 from framework.crawl.lst_dtl import MSCrawler
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from tasks import CFG_DIR
 from framework.utils import js_wrapper
 import random
@@ -199,7 +199,11 @@ class DCrawler(MSCrawler):
             # fk, fv = self.filter_group[self.sort_filter_idx % len(self.filter_group)]
             # self.lst_data[fk] = fv
 
-            self.lst_data['sortFields'] = 's51:desc'
+            self.lst_data['sortFields'] = 's50:desc'
+            self.end_day = date.today()
+            self.start_day = self.end_day - timedelta(1)
+            self.lst_data['cprqStart'] = self.start_day.isoformat()
+            self.lst_data['cprqEnd'] = self.end_day.isoformat()
 
             
             
@@ -249,6 +253,8 @@ class DCrawler(MSCrawler):
         '''
         time.sleep(2)
         self.lst_data['pageNum'] = self.pg_index
+        if self.pg_index == 200:
+            self.reset_condition = True
         try:
             
             resp = self._request(self.lst_url, self.lst_data)
@@ -258,15 +264,15 @@ class DCrawler(MSCrawler):
                                       "still fails" % (self.lst_url, self.pg_index))
                     return None
                 
-                if resp.cookies:
-                    print('update cookies: ', resp.cookies)
-                    self.cookies.update(resp.cookies)
+                # if resp.cookies:
+                #     print('update cookies: ', resp.cookies)
+                #     self.cookies.update(resp.cookies)
 
                 try:
                     json_ = resp.json()
                 except Exception as e:
                     print('failed to jsonize response: %s, page index %d' % (resp.text, self.pg_index))
-                    if self.pg_index > 1000:
+                    if self.pg_index > 200:
                         info_ = "page index is very large and no data is gotten, so reset query condition, " \
                             "current condition: (sort->%s,%s->%s) reset query condition"\
                             % (self.sort_group[self.sort_filter_idx // len(self.filter_group)],
@@ -343,7 +349,7 @@ class DCrawler(MSCrawler):
                                                           (self.cfg.PROJECT.NAME, self.inst_name, (r[0],r[4])))
 
                 time.sleep(5)
-                if self.pg_index >= 1000 and len(records) == 0:
+                if self.pg_index >= 200 and len(records) == 0:
                     self.reset_condition = True
                     info_ = "page index is very large and no data is gotten, so reset query condition, " \
                             "current condition: (sort->%s,%s->%s) reset query condition"\
@@ -531,6 +537,7 @@ class DCrawler(MSCrawler):
         return empty-tuple record: task successed, but no data needs returning
         return nonempty record: task successed, with data returned
         '''
+        times.sleep(3)
         if self._check_dtl(args[0]):
             print("uid %s already exists in database")
             return tuple()
@@ -538,15 +545,17 @@ class DCrawler(MSCrawler):
         self.dtl_data['docId'] = args[0]
         resp = self._request(self.dtl_url, self.dtl_data)
         if resp:
+            # print("response cookies: %s" % resp.cookies.items())
+            # if resp.cookies:
+            #     print('update cookies: ', resp.cookies)
+            #     self.cookies.update(resp.cookies)
+
             if resp.status_code != 200:
                 self.logger.error("requesting %s with wenshu id %s "
                                   "still fails" % (self.dtl_url, args[0]))
                 return None
             
-            # print("response cookies: %s" % resp.cookies.items())
-            if resp.cookies:
-                print('update cookies: ', resp.cookies)
-                self.cookies.update(resp.cookies)
+            
 
             try:
                 json_ = resp.json()
@@ -604,7 +613,11 @@ class DCrawler(MSCrawler):
         # return None
         super(DCrawler, self)._reset_lst()
 
-
+        self.end_day = self.start_day
+        self.start_day = self.end_day - timedelta(1)
+        self.lst_data['cprqStart'] = self.start_day.isoformat()
+        self.lst_data['cprqEnd'] = self.end_day.isoformat()
+        
         # self.sort_filter_idx += 1
         # self.lst_data['sortFields'] = self.sort_group[self.sort_filter_idx // len(self.filter_group)]
         # fk, fv = self.filter_group[self.sort_filter_idx % len(self.filter_group)]
