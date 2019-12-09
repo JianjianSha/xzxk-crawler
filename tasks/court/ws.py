@@ -205,7 +205,7 @@ class DCrawler(MSCrawler):
             
 
         self.session.headers = self.headers
-        self._update_cookies()
+        # self._update_cookies()                # 2019-12-09  wenshu website cancel RUISHU encryption
 
 
     def get_cookies_from_jsdom_1(self):
@@ -259,6 +259,7 @@ class DCrawler(MSCrawler):
                     return None
                 
                 if resp.cookies:
+                    print('update cookies: ', resp.cookies)
                     self.cookies.update(resp.cookies)
 
                 try:
@@ -478,7 +479,10 @@ class DCrawler(MSCrawler):
                     print("status_code %d: preparing to update cookies" % resp.status_code)
                     time.sleep(30)
                     # it may need to update cookie
-                    self._update_cookies()
+                    # self._update_cookies()        # 2019-12-09  wenshu website cancel RUISHU encryption
+                    if resp.cookies:
+                        print('update cookies: ', resp.cookies)
+                        self.cookies.update(resp.cookies)
                 elif resp.status_code == 200:
                     return resp
                 else:
@@ -539,6 +543,7 @@ class DCrawler(MSCrawler):
             
             # print("response cookies: %s" % resp.cookies.items())
             if resp.cookies:
+                print('update cookies: ', resp.cookies)
                 self.cookies.update(resp.cookies)
 
             try:
@@ -597,7 +602,7 @@ class DCrawler(MSCrawler):
         # return None
         super(DCrawler, self)._reset_lst()
 
-        
+
         # self.sort_filter_idx += 1
         # self.lst_data['sortFields'] = self.sort_group[self.sort_filter_idx // len(self.filter_group)]
         # fk, fv = self.filter_group[self.sort_filter_idx % len(self.filter_group)]
