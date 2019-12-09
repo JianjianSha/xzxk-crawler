@@ -23,6 +23,10 @@ class ruishu:
         self.version = 0
 
     def GET(self):
+        d = get_cookie_from_local_db('wenshu.court.gov.cn')
+        return ';'.join(['%s=%s' % (k,d[k]) for k in d])
+
+    def GET_old(self):
         # if self.time is not None:
         #     if time.time() - self.time < 50.0:
         #         return self.cookies

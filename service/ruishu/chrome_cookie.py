@@ -7,7 +7,12 @@ IS_WINDOWS = False
 # Function to 
 def decrypt_windows(encrypted_value):
     import win32crypt
-    return win32crypt.CryptUnprotectData(encrypted_value.decode('utf-8'))
+    try:
+        decrypted_value = win32crypt.CryptUnprotectData(encrypted_value.decode('utf-8'))
+        return decrypted_value[1].decode('utf-8')
+    except Exception as e:
+        print('failed to decrypt chrome cookie on windows', str(e))
+        return ''
 
 
 def decrypt_unix(encrypted_value):

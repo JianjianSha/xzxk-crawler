@@ -171,36 +171,35 @@ class DCrawler(MSCrawler):
         }
 
         if is_master:
-            self.sort_group = ['s51:desc', 's50:desc', 's52:desc']
-            filter_group = {'s4': [], 's8': [], 's6': [], 's11': []}
-            with open('tasks/court/full_text_dict.json', 'r') as f:
-                ft_dict = json.load(f)
-                fycj = ft_dict.get('fycj', None)
-                ay = ft_dict.get('ay', None)
-                wslx = ft_dict.get('wslx', None)
-                ajlx = ft_dict.get('ajlx', None)
-                if fycj:
-                    filter_group['s4'] = [i['code'] for i in fycj]
+            # self.sort_group = ['s51:desc', 's50:desc', 's52:desc']
+            # filter_group = {'s4': [], 's8': [], 's6': [], 's11': []}
+            # with open('tasks/court/full_text_dict.json', 'r') as f:
+            #     ft_dict = json.load(f)
+            #     fycj = ft_dict.get('fycj', None)
+            #     ay = ft_dict.get('ay', None)
+            #     wslx = ft_dict.get('wslx', None)
+            #     ajlx = ft_dict.get('ajlx', None)
+            #     if fycj:
+            #         filter_group['s4'] = [i['code'] for i in fycj]
                 
-                if ay:
-                    filter_group['s11'] = [i['id'] for i in ay if i['parent'] == '#']
+            #     if ay:
+            #         filter_group['s11'] = [i['id'] for i in ay if i['parent'] == '#']
                 
-                if wslx:
-                    filter_group['s6'] = [i['code'] for i in wslx]
+            #     if wslx:
+            #         filter_group['s6'] = [i['code'] for i in wslx]
                 
-                if ajlx:
-                    filter_group['s8'] = [i['code'] for i in ajlx]
+            #     if ajlx:
+            #         filter_group['s8'] = [i['code'] for i in ajlx]
 
-            # do not use two kinds of filters at the same time,
-            #   but in the future, this rule may be broken
-            self.filter_group = list(itertools.chain(*[[(k, v) for v in filter_group[k]] for k in filter_group]))
-            self.sort_filter_idx = 0
-            # m = len(self.sort_group)
-            # n = len(self.filter_group[])
-            # 0 <= self.sort_filter_idx < m*n
-            self.lst_data['sortFields'] = self.sort_group[self.sort_filter_idx // len(self.filter_group)]
-            fk, fv = self.filter_group[self.sort_filter_idx % len(self.filter_group)]
-            self.lst_data[fk] = fv
+            # # do not use two kinds of filters at the same time,
+            # #   but in the future, this rule may be broken
+            # self.filter_group = list(itertools.chain(*[[(k, v) for v in filter_group[k]] for k in filter_group]))
+            # self.sort_filter_idx = 0
+            # self.lst_data['sortFields'] = self.sort_group[self.sort_filter_idx // len(self.filter_group)]
+            # fk, fv = self.filter_group[self.sort_filter_idx % len(self.filter_group)]
+            # self.lst_data[fk] = fv
+
+            self.lst_data['sortFields'] = 's51:desc'
 
             
             
@@ -248,6 +247,7 @@ class DCrawler(MSCrawler):
                             (maybe task completed or some web page with not data)
         return list: task successed, with data returned
         '''
+        time.sleep(2)
         self.lst_data['pageNum'] = self.pg_index
         try:
             
@@ -265,7 +265,7 @@ class DCrawler(MSCrawler):
                     json_ = resp.json()
                 except Exception as e:
                     print('failed to jsonize response: %s, page index %d' % (resp.text, self.pg_index))
-                    if self.pg_index > 50:
+                    if self.pg_index > 1000:
                         info_ = "page index is very large and no data is gotten, so reset query condition, " \
                             "current condition: (sort->%s,%s->%s) reset query condition"\
                             % (self.sort_group[self.sort_filter_idx // len(self.filter_group)],
@@ -299,7 +299,8 @@ class DCrawler(MSCrawler):
                                 list_ = json_['resultList']
                                 if len(list_) == 0:
                                     # on this web page, the list has no items(maybe its the last page)
-                                    self.reset_condition = True
+                                    #   no no no, it is common the server returns empty list, so don't believe it
+                                    # self.reset_condition = True
                                     info_ = "get json data, but queryResult is empty list, " \
                                             "current condition: (sort->%s,%s->%s) reset query condition"\
                                             % (self.sort_group[self.sort_filter_idx // len(self.filter_group)],
@@ -341,7 +342,7 @@ class DCrawler(MSCrawler):
                                                           (self.cfg.PROJECT.NAME, self.inst_name, (r[0],r[4])))
 
                 time.sleep(5)
-                if self.pg_index >= 50 and len(records) == 0:
+                if self.pg_index >= 1000 and len(records) == 0:
                     self.reset_condition = True
                     info_ = "page index is very large and no data is gotten, so reset query condition, " \
                             "current condition: (sort->%s,%s->%s) reset query condition"\
@@ -595,10 +596,12 @@ class DCrawler(MSCrawler):
     def _reset_lst(self):
         # return None
         super(DCrawler, self)._reset_lst()
-        self.sort_filter_idx += 1
-        self.lst_data['sortFields'] = self.sort_group[self.sort_filter_idx // len(self.filter_group)]
-        fk, fv = self.filter_group[self.sort_filter_idx % len(self.filter_group)]
-        self.lst_data[fk] = fv
+
+        
+        # self.sort_filter_idx += 1
+        # self.lst_data['sortFields'] = self.sort_group[self.sort_filter_idx // len(self.filter_group)]
+        # fk, fv = self.filter_group[self.sort_filter_idx % len(self.filter_group)]
+        # self.lst_data[fk] = fv
 
 
     # filter: [{"key":"s38","value":"100"},{"key":"s11","value":"1"},{"key":"s4","value":"2"},{"key":"s42","value":"2019"},{"key":"s8","value":"02"}]
