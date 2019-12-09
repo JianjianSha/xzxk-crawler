@@ -474,18 +474,12 @@ class DCrawler(MSCrawler):
                                          cookies=self.cookies, 
                                          proxies=proxies,
                                          timeout=60)
+                
                 if resp.status_code == 202:
                     num += 1
                     print("status_code %d: preparing to update cookies" % resp.status_code)
                     time.sleep(30)
-                    # it may need to update cookie
-                    # self._update_cookies()        # 2019-12-09  wenshu website cancel RUISHU encryption
-                    if resp.cookies:
-                        print('update cookies: ', resp.cookies)
-                        self.cookies.update(resp.cookies)
-                elif resp.status_code == 200:
-                    return resp
-                else:
+                elif resp.status_code != 200:
                     if resp.status_code >= 400 and self.cfg.PROJECT.PROXY_IP:
                         self.ips.remove(ip)
                         if len(self.ips) < 3:
@@ -498,8 +492,16 @@ class DCrawler(MSCrawler):
                                 raise ValueError("proxy ip error: cannot get more proxy ips")
                         print("use proxy ip (%r), status_code: %d, it recommends you switch proxy ip"
                               % (self.cfg.PROJECT.PROXY_IP, resp.status_code))
-                    print("it will sleep 10s, and please analyse error in time")
+                    print("it will sleep 10s, and please analyse error in time, status code:", resp.status_code)
                     time.sleep(10)
+
+                # it may need to update cookie
+                # self._update_cookies()        # 2019-12-09  wenshu website cancel RUISHU encryption
+                if resp.cookies:
+                        print('update cookies: ', resp.cookies)
+                        self.cookies.update(resp.cookies)
+                if resp.status_code == 200:
+                    return resp
             except socket.timeout as e:
                 num += 1
                 print('socket timeout error. trying %d' % num)
