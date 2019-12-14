@@ -204,6 +204,8 @@ class DCrawler(MSCrawler):
             self.start_day = self.end_day - timedelta(1)
             self.lst_data['cprqStart'] = self.start_day.isoformat()
             self.lst_data['cprqEnd'] = self.end_day.isoformat()
+            
+            
 
             
             
@@ -253,7 +255,7 @@ class DCrawler(MSCrawler):
         '''
         time.sleep(2)
         self.lst_data['pageNum'] = self.pg_index
-        if self.pg_index == 200:
+        if self.pg_index >= 200:
             self.reset_condition = True
         try:
             
@@ -347,6 +349,11 @@ class DCrawler(MSCrawler):
                                                                           (self.cfg.PROJECT.NAME, self.inst_name, r))
                                                     print('%s (master: %d) failed to insert the record: %r' % 
                                                           (self.cfg.PROJECT.NAME, self.inst_name, (r[0],r[4])))
+                                            if len(new_records) == 0:
+                                                self.duplicate_num += 1
+                                                if self.duplicate_num > 10:
+                                                    self.reset_condition = True
+
 
                 time.sleep(5)
                 if self.pg_index >= 200 and len(records) == 0:
@@ -617,7 +624,7 @@ class DCrawler(MSCrawler):
         self.start_day = self.end_day - timedelta(1)
         self.lst_data['cprqStart'] = self.start_day.isoformat()
         self.lst_data['cprqEnd'] = self.end_day.isoformat()
-        
+
         # self.sort_filter_idx += 1
         # self.lst_data['sortFields'] = self.sort_group[self.sort_filter_idx // len(self.filter_group)]
         # fk, fv = self.filter_group[self.sort_filter_idx % len(self.filter_group)]

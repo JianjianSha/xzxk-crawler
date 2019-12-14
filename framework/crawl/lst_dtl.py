@@ -240,6 +240,7 @@ class MSCrawler:
 
         
         if is_master:
+            self.duplicate_num = 0
             self.pg_index = self.redis.get(self.redis_key_prefix+"page:%d" % self.inst_name)
             if self.pg_index is None:
                 self._get_page_atomic()
@@ -378,6 +379,7 @@ class MSCrawler:
 
     def _reset_lst(self):
         self.reset_condition = False
+        self.duplicate_num = 0
         old_pg_index = self.pg_index
         self._get_page_atomic()
         if old_pg_index < self.pg_index:    # pg_index had not been reset this epoch
@@ -502,13 +504,16 @@ class MSCrawler:
         return list of args(strings): task success, with data returned
         '''
         args = self._lst()
+
+        if args is None or len(args)>0:
+            self.duplicate_num = 0
+
         # print('args returned from list page: ', args)
         if args and args[0]:
             self.redis.rpush(self.redis_key, *args)
             return 1
 
-        # if args is None:
-        #     return -1
+        
 
         print('no data returned from %s at page %d' % (self.lst_url, self.pg_index))
         

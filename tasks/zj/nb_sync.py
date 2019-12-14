@@ -3,6 +3,8 @@ from framework.easydict import EasyDict as edict
 from framework.dba import DBA
 from framework.log import get_logger
 from datetime import datetime
+import hashlib
+import time
 
 
 class Sync:
@@ -22,6 +24,7 @@ class Sync:
 
         self.name = self.cfg.PROJECT.NAME
         self.batch = self.cfg.PROJECT.BATCH
+        self.m = hashlib.md5()
         # self.logger = get_logger('log/zj.nb.sync.log')
         self.dba = {}
         for k in self.cfg.DATABASES:
@@ -77,6 +80,18 @@ class Sync:
                   % self.offset)
             raise e
 
+    def _md5(self, text):
+        '''casecode, execcourtname,zx_pname
+        '''
+        try:
+            self.m.update(text.encode(encoding='utf-8'))
+            md5_ = self.m.hexdigest()[9:25]
+            return md5_
+        except Exception as e:
+            print(str(e))
+            raise e
+
+
     def _transform(self):
         datas = []
         ct = datetime.now().strftime('%Y-%m-%d')
@@ -98,7 +113,10 @@ class Sync:
                     idx = name.find('(') if name.find('(') > 0 else name.find('（')
                     if idx > 0:
                         name = name[0:idx] 
-                data = -d[0], d[10], d[6], name, d[9], ct, ct, code
+
+                md5_ = self._md5(d[10]+d[6]+name)
+                # id, case_no, exec_court, exec_name, 
+                data = -d[0], d[10], d[6], name, d[9], ct, ct, code, md5_
                 datas.append(data)
         except Exception as e:
             print('error: failed to transform data')
@@ -106,12 +124,14 @@ class Sync:
         self.datas = datas
 
     def _put(self):
+        time.sleep(1)
         try:
             
             self.dba['QZCourt'].insert(
                 'insert into Zhixing (zx_id, zx_caseCode, zx_execCourtName, '
                 'zx_pname, zx_caseCreateTime, createTime, updateTime, status, '
-                'oc_code, zx_type) values (%s, %s, %s, %s, %s, %s, %s, 1, %s, 0)',
+                'oc_code, zx_type, zx_md5, zx_source) values '
+                "(%s, %s, %s, %s, %s, %s, %s, 1, %s, 0, %s, 'nbcredit.gov.cn')",
                 self.datas
             )
             return
@@ -126,7 +146,8 @@ class Sync:
                 self.dba['QZCourt'].insert(
                     'insert into Zhixing (zx_id, zx_caseCode, zx_execCourtName, '
                     'zx_pname, zx_caseCreateTime, createTime, updateTime, status, '
-                    'oc_code, zx_type) values (%s, %s, %s, %s, %s, %s, %s, 1, %s, 0)',
+                    'oc_code, zx_type, zx_md5, zx_source) values '
+                    "(%s, %s, %s, %s, %s, %s, %s, 1, %s, 0, %s, 'nbcredit.gov.cn')",
                     [data]
                 )
             except Exception as e:
