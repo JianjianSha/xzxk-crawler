@@ -7,5 +7,9 @@ TASKS:
     ACTIVE: 0
   
   court.ws:
-    ACTIVE: 1
+    ACTIVE: 0
     TYPE: 'cluster.master'
+
+  court.tyc_ws:
+    ACTIVE: 1
+    TYPE: 'cluster.slave'

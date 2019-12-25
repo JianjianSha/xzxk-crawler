@@ -76,7 +76,8 @@ class TaskContainer:
 
         except KeyboardInterrupt as e:
             self.alive.value = False
-            print('interrupt by user')
+            print('interrupt by user, please wait until 60s and it will close automatically')
+            time.sleep(35)
 
 
 

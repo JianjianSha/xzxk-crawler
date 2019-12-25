@@ -315,6 +315,19 @@ class MSCrawler:
                     self.dba[db_name].execute(
                         create_table_sql(tb_name, tb.FIELDS, tb.INDICES))
 
+    def fprint(self, txt, color='green'):
+        d = {
+            'red':31, 'green':32, 'yellow':33,
+            'blue':34, 'pink':35, 'cyan':36
+        }
+        if color in d:
+            e = '\033[0m'
+            s = '\033[1;%dm' % d[color]
+        else:
+            e = ''
+            s = ''
+        print('%s%r%s' % (s, txt, e))
+
     def run(self, args):
         self.alive = args[0] if isinstance(args, tuple) else args
 
@@ -415,11 +428,14 @@ class MSCrawler:
 
         while self.arg is None:
             print('%s (slave: %d) is waiting for arg' % (self.cfg.PROJECT.NAME, self.inst_name))
-            arg = self.redis.blpop(self.redis_key, 60)
-            if arg and len(arg) == 2:
-                self.arg = str(arg[1], encoding='utf-8')
-            if not self.alive.value:
-                print('interrupted by user, please wait for ending work...')
+            try:
+                arg = self.redis.blpop(self.redis_key, 30)
+                if arg and len(arg) == 2:
+                    self.arg = str(arg[1], encoding='utf-8')
+                if not self.alive.value:
+                    print('interrupted by user, please wait for ending work...')
+                    break
+            except:
                 break
 
         if self.arg:

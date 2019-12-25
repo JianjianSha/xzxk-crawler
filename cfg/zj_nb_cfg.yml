@@ -1,7 +1,7 @@
 PROJECT:
   NAME: zj.nb     #
   INST_NAME: 1
-  RUN_MODE: relase
+  RUN_MODE: release
   PROXY_IP: False
   REDIS:          # for distributing crawler, only redis is used 
     URL: 'redis://192.168.2.106:6379/0'

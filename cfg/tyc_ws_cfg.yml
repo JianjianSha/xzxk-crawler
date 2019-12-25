@@ -1,0 +1,48 @@
+# tianyancha
+PROJECT:
+  NAME: tyc.ws     #
+  INST_NAME: 1
+  RUN_MODE: release
+  PROXY_IP: False
+  REDIS:          # for distributing crawler, only redis is used 
+    URL: 'redis://192.168.2.106:6379/0'
+    KEY_PREFIX: 'tyc:ws:'
+    ARG_SEP: '_'  # sometimes, it needs to join many arguments with a sperator to use as redis key
+
+WEB:
+  URL: https://sitemap.tianyancha.com/daily/ss
+  URL_0: https://sitemap.tianyancha.com/daily/%s/ss
+  URL_1: https://www.tianyancha.com/lawsuit/%s
+  # https://www.tianyancha.com/lawsuit/02cf637f390f43da848422a449437ee8
+  TABLES: [
+    QZTemp.TYCWenshu,
+  ]
+
+DATABASES:
+  INITIALIZE: True    # Check if table is exists in DB.
+  QZTemp:    # mssql.DB_NAME
+    HOST: 192.168.2.195
+    USER: qzdata
+    PWD: qzdata.admin
+
+    TABLES:
+      TYCWenshu:
+        FIELDS: [
+          [id, 'int identity(1,1)', not null primary key],
+          [title, varchar(512), not null],  # s1 案件名称
+          [court, varchar(512), 'null'],    # s2 法院名称
+          [uid, varchar(128), not null],    # s5, rowKey 文书ID
+          [coms, varchar(4096), 'null'],    # related company, seperated by comma
+          [case_no, varchar(128), 'null'],      # 案号
+          [case_type, varchar(128), 'null'],    # 案件类型
+          # [lawer, varchar(1024), 'null'],  # 律师, seperated by comma, correspondint to law_office one-to-one
+          [law_office, varchar(4096), 'null'],   # related 律所, seperated by comma
+          [judge_date, varchar(64), not null],  # 裁判日期
+          [issue_time, varchar(32), 'null'],  # 发布日期
+          [content, varchar(max), 'null'],     # all context from tianyancha detail page
+          [source, varchar(512), 'null'],    # data source
+          [create_time, datetime, 'null']
+        ]
+        INDICES: [
+          [uid, unique]
+        ]
