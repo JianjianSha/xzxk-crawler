@@ -1,6 +1,7 @@
 import os
 import time
 from framework.utils.js_wrapper import js_ctx
+from .ruishu.chrome_cookie import get_cookie_from_local_db
 
 urls = (
     '/', 'index',

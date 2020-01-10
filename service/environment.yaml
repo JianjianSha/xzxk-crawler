@@ -7,4 +7,6 @@ channels:
 dependencies:
   - nodejs
   - web.py
+  - secretstorage
+  - cheroot
 prefix: /home/jian/sha/tool/miniconda3

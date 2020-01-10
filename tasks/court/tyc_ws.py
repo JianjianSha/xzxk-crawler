@@ -15,9 +15,7 @@ class DCrawler(MSCrawler):
         super(DCrawler, self).__init__(cfg_file, is_master)
         self.redis_date_key = self.redis_key_prefix+"date"
 
-        self.date = self.redis.get(self.redis_date_key)
-        self.activate_date_max = 0
-        self.page_max = 0
+        
 
         self.headers = {
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3',
@@ -26,10 +24,14 @@ class DCrawler(MSCrawler):
             'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.87 Safari/537.36',
             # 'Cookie': 'aliyungf_tc=AQAAAKC/2jyBKAIApGUYdEf/ytb4yw2Z; csrfToken=Q-47on8Cdd2FjgVDVe5VMzIB; TYCID=88599880262511ea8580070e2a6d5ecb; undefined=88599880262511ea8580070e2a6d5ecb; ssuid=1497467044; bannerFlag=undefined; Hm_lvt_e9ceb92f9ef221e0401c0d5b35aa93f1=1577175325; _ga=GA1.2.1259398021.1577175325; _gid=GA1.2.1089910488.1577175325; Hm_lpvt_e9ceb92f9ef221e0401c0d5b35aa93f1=1577175644'
         }
-        if self.date is None:
-            self.init_redis()
-        else:
-            self.date = str(self.date, 'utf-8')
+        if is_master:
+            self.date = self.redis.get(self.redis_date_key)
+            self.activate_date_max = 0
+            self.page_max = 0
+            if self.date is None:
+                self.init_redis()
+            else:
+                self.date = str(self.date, 'utf-8')
 
 
     def init_redis(self):
@@ -121,7 +123,7 @@ class DCrawler(MSCrawler):
                     month = 12
             else:   # set to next date
                 date += 1
-            self.date = '2019%2d%2d' % (month, date)
+            self.date = '2019{:0>2d}{:0>2d}'.format(month, date)
             self.redis.set(self.redis_date_key, self.date)
             if self.date == '20191201':
                 raise 'crawling completed~!'    # crawling process is completed!!!

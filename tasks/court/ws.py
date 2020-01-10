@@ -107,6 +107,11 @@ def decipher(result, key, data):
     return plain_text
 
 
+def decipher2(result, key):
+    with js_wrapper.js_ctx(
+        os.path.join(os.path.dirname(__file__), 'cipher.js')) as ctx:
+        return ctx.call('decipher')
+
 class DCrawler(MSCrawler):
     def __init__(self, is_master):
         super(DCrawler, self).__init__(cfg_file, is_master)
@@ -132,15 +137,17 @@ class DCrawler(MSCrawler):
             'HM4hUBT0dDOn80S': '',
             'HM4hUBT0dDOn80T': ''
         }
+
+        self.queryCondition = '[{"key":"cprq","value":"%s TO %s"}]'
         self.lst_data = {
             # 'pageId': 'bb059ae562ac691f970afb54dc91e833',
             # 's8': '02',
             'cfg': 'com.lawyee.judge.dc.parse.dto.SearchDataDsoDTO@queryDoc',
             'pageNum': 1,
-            'sortFields': 's50:desc',       # s50: court cascade; s51: judge date
+            'sortFields': 's51:desc',       # s50: court cascade; s51: judge date
             'ciphertext': '',
             'pageSize': 5,
-            'queryCondition': [],
+            # 'queryCondition': '[{"key":"s1","value":"导游"}]',  # s1->title, filter results whose title contains '导游'
             # if invalid, use `req_verify_token`
             '_RequestVerificationToken': req_verify_token() 
         }
@@ -154,7 +161,7 @@ class DCrawler(MSCrawler):
 
         self.headers = {
             'Host': 'wenshu.court.gov.cn',
-    # 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.132 Safari/537.36',
+            # 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.132 Safari/537.36',
             'Content-Type': 'application/x-www-form-urlencoded',
             'Referer': 'http://wenshu.court.gov.cn/website/wenshu/181217BMTKHNT2W0/index.html',
             'Accept': 'application/json, text/javascript, */*; q=0.01',
@@ -199,11 +206,12 @@ class DCrawler(MSCrawler):
             # fk, fv = self.filter_group[self.sort_filter_idx % len(self.filter_group)]
             # self.lst_data[fk] = fv
 
-            self.lst_data['sortFields'] = 's50:desc'
             self.end_day = date.today()
             self.start_day = self.end_day - timedelta(1)
             self.lst_data['cprqStart'] = self.start_day.isoformat()
             self.lst_data['cprqEnd'] = self.end_day.isoformat()
+            self.lst_data['queryCondition'] = self.queryCondition % (self.lst_data['cprqStart'], self.lst_data['cprqEnd'])
+            print('reset queryCondition to:', self.lst_data['queryCondition'])
             
             
 
@@ -232,10 +240,10 @@ class DCrawler(MSCrawler):
         # update cookie via jsdom
         cookies = self.get_cookies_from_jsdom_2() if self.cfg.PROJECT.JSDOM.MODE == 'webservice' else self.get_cookies_from_jsdom_1()
         num = 1
-        while num < 3 and cookies.startswith('[empty]'): 
+        while num < 3 and (cookies.startswith('[empty]') or cookies == ''): 
             cookies = self.get_cookies_from_jsdom_2() if self.cfg.PROJECT.JSDOM.MODE == 'webservice' else self.get_cookies_from_jsdom_1()
             num += 1
-        if cookies.startswith('[empty]'):
+        if cookies.startswith('[empty]') or cookies == '':
             self.logger.error("jsdom(%s) cookies error" % self.cfg.PROJECT.JSDOM.MODE)
             print("jsdom(%s) cookies error" % self.cfg.PROJECT.JSDOM.MODE)
             raise RuntimeError
@@ -255,8 +263,9 @@ class DCrawler(MSCrawler):
         '''
         time.sleep(2)
         self.lst_data['pageNum'] = self.pg_index
-        if self.pg_index >= 200:
+        if self.pg_index > 200:
             self.reset_condition = True
+            return None
         try:
             
             resp = self._request(self.lst_url, self.lst_data)
@@ -274,13 +283,6 @@ class DCrawler(MSCrawler):
                     json_ = resp.json()
                 except Exception as e:
                     print('failed to jsonize response: %s, page index %d' % (resp.text, self.pg_index))
-                    if self.pg_index > 200:
-                        info_ = "page index is very large and no data is gotten, so reset query condition, " \
-                            "current condition: (sort->%s,%s->%s) reset query condition"\
-                            % (self.sort_group[self.sort_filter_idx // len(self.filter_group)],
-                                *self.filter_group[self.sort_filter_idx % len(self.filter_group)])
-                        print(info_)
-                        self.reset_condition = True
                     return None
                 if self.run_mode != 'release':
                     print(json_)
@@ -295,13 +297,8 @@ class DCrawler(MSCrawler):
                                          json_['secretKey'], 
                                          time.strftime("%Y%m%d"))
 
-                        
-                        # print("after deciphered: ", json_)
-                        # print(type(json_))
                         json_ = json.loads(json_)
-                        # print("after deserialized: ", json_)
 
-                        
                         if 'queryResult' in json_:
                             json_ = json_['queryResult']
                             if 'resultList' in json_:
@@ -309,7 +306,6 @@ class DCrawler(MSCrawler):
                                 if len(list_) == 0:
                                     # on this web page, the list has no items(maybe its the last page)
                                     #   no no no, it is common the server returns empty list, so don't believe it
-                                    # self.reset_condition = True
                                     info_ = "get json data, but queryResult is empty list, " \
                                             "current condition: (sort->%s,%s->%s) reset query condition"\
                                             % (self.sort_group[self.sort_filter_idx // len(self.filter_group)],
@@ -349,21 +345,7 @@ class DCrawler(MSCrawler):
                                                                           (self.cfg.PROJECT.NAME, self.inst_name, r))
                                                     print('%s (master: %d) failed to insert the record: %r' % 
                                                           (self.cfg.PROJECT.NAME, self.inst_name, (r[0],r[4])))
-                                            if len(new_records) == 0:
-                                                self.duplicate_num += 1
-                                                if self.duplicate_num > 10:
-                                                    self.reset_condition = True
-
-
                 time.sleep(5)
-                if self.pg_index >= 200 and len(records) == 0:
-                    self.reset_condition = True
-                    info_ = "page index is very large and no data is gotten, so reset query condition, " \
-                            "current condition: (sort->%s,%s->%s) reset query condition"\
-                            % (self.sort_group[self.sort_filter_idx // len(self.filter_group)],
-                                *self.filter_group[self.sort_filter_idx % len(self.filter_group)])
-                    print(info_)
-                    self.logger.info(info_)
                 return [r[4] for r in new_records if r[4]]  # doc id
 
 
@@ -374,7 +356,7 @@ class DCrawler(MSCrawler):
         return None
         
 
-    def json2tuple_ws(self, json_, doc_id=None):
+    def json2tuple_ws(self, json_, doc_id=None, title=None):
         t = [0] * self.record_length
 
         province = ''
@@ -442,6 +424,10 @@ class DCrawler(MSCrawler):
                 elif k == 'qwContent':
                     t[23] = json_[v]
             t[17] = '%s#%s#%s' % (province, city, county)
+
+            if title:
+                t[0] = title
+
             if t[23] and isinstance(t[23], str):
                 try:
                     cnt = base64.b64encode(gzip.compress(t[23].encode('utf-8')))
@@ -487,7 +473,6 @@ class DCrawler(MSCrawler):
                                          cookies=self.cookies, 
                                          proxies=proxies,
                                          timeout=60)
-                
                 if resp.status_code == 202:
                     num += 1
                     print("status_code %d: preparing to update cookies" % resp.status_code)
@@ -508,13 +493,15 @@ class DCrawler(MSCrawler):
                     print("it will sleep 10s, and please analyse error in time, status code:", resp.status_code)
                     time.sleep(10)
 
-                # it may need to update cookie
-                # self._update_cookies()        # 2019-12-09  wenshu website cancel RUISHU encryption
-                if resp.cookies:
-                        print('update cookies: ', resp.cookies)
-                        self.cookies.update(resp.cookies)
                 if resp.status_code == 200:
                     return resp
+                # it may need to update cookie
+                self._update_cookies()        # 2019-12-09  wenshu website cancel RUISHU encryption
+                # if resp.cookies:              # 2019-12-21 wenshu website reuse RUISHU encryption
+                #         print('update cookies: ', resp.cookies)
+                #         self.cookies.update(resp.cookies)
+
+                
             except socket.timeout as e:
                 num += 1
                 print('socket timeout error. trying %d' % num)
@@ -529,14 +516,19 @@ class DCrawler(MSCrawler):
         return resp
 
     def _check_dtl(self, uid):
-        '''check if details are already existed'''
+        '''
+        check if details are already existed
+        return: if uid exists, if detail informations exist, field `title`
+        '''
         t = self.dba[self.db_name].select(select_sql(self.tb_name, ('uid', uid)))
+        if t is None:
+            return False, False, None
         # in list_page, 1,2,7,9,10,26,31,43,44 are returned fields
         if t[15] == '' and t[17] == '' and t[24] == '' and t[12] == '' \
             and t[3] == '' and t[6] == '' and t[8] == '' and t[10] == '' \
-                and t[11] == '':
-            return False
-        return True
+                and t[11] == '':    # no dtl information
+            return True, False, t[1]
+        return True, True, t[1]
 
     def _dtl(self, url, args):
         '''
@@ -544,9 +536,10 @@ class DCrawler(MSCrawler):
         return empty-tuple record: task successed, but no data needs returning
         return nonempty record: task successed, with data returned
         '''
-        times.sleep(3)
-        if self._check_dtl(args[0]):
-            print("uid %s already exists in database")
+        time.sleep(3)
+        old = self._check_dtl(args[0]):
+        if old[1]:  # has detail information
+            print("uid %s already has its dtl info existed in database")
             return tuple()
 
         self.dtl_data['docId'] = args[0]
@@ -580,7 +573,12 @@ class DCrawler(MSCrawler):
                     if self.run_mode != 'release':
                         print(json_)
                         return None
-                    r = self.json2tuple_ws(json_, doc_id=args[0])
+
+                    if old[2] and len(old[2]) > 1:
+                        title = old[2]
+                    else:
+                        title = None
+                    r = self.json2tuple_ws(json_, doc_id=args[0], title=title)
                     if r is None:
                         print("failed to parse json data, please check in log file, and here it go on...")
                     else:
@@ -588,23 +586,17 @@ class DCrawler(MSCrawler):
                         scheme = tb.FIELDS
                         
                         try:
-                            self.dba[self.db_name].insert(
-                                insert_sql(self.tb_name, scheme), [r])
-                        except Exception as ie:
-                            if 'duplicate key' in str(ie):
-                                print('change action from insert to update')
-                                try:
-                                    indices = tb.INDICES
-                                    self.dba[self.db_name].update(
-                                        update_sql(self.tb_name, scheme, indices, r))
-                                except Exception as ue:
-                                    self.logger.exception("failed to update wenshu, error: %s, and record is: %s"
-                                                % (str(ue), r))
-                                    print("failed to update wenshu %s" % r[4])
+                            if old[0]:
+                                indices = tb.INDICES
+                                self.dba[self.db_name].update(
+                                    update_sql(self.tb_name, scheme, indices, r))
                             else:
-                                print('failed to insert wenshu %s' % r[4])
-                                self.logger.exception("failed to insert wenshu (%s), error: %s"
-                                            % (r[4], str(ie)))
+                                self.dba[self.db_name].insert(
+                                    insert_sql(self.tb_name, scheme), [r])
+                        except Exception as ie:
+                            print('failed to insert wenshu %s' % r[4])
+                            self.logger.exception("failed to insert wenshu (%s), error: %s"
+                                        % (r[4], str(ie)))
                 else:
                     return None     # web error -> task failure
             else:
@@ -612,7 +604,7 @@ class DCrawler(MSCrawler):
         # only failed to scrape web page can be seen as task failed, other errors
         #   such convesion error or saving DB error is not truely failure, because we can
         #   recover data from log file later
-        time.sleep(3)
+        time.sleep(2)
         return tuple()      
 
 
@@ -624,7 +616,8 @@ class DCrawler(MSCrawler):
         self.start_day = self.end_day - timedelta(1)
         self.lst_data['cprqStart'] = self.start_day.isoformat()
         self.lst_data['cprqEnd'] = self.end_day.isoformat()
-
+        self.lst_data['queryCondition'] = self.queryCondition % (self.lst_data['cprqStart'], self.lst_data['cprqEnd'])
+        print('reset queryCondition to:', self.lst_data['queryCondition'])
         # self.sort_filter_idx += 1
         # self.lst_data['sortFields'] = self.sort_group[self.sort_filter_idx // len(self.filter_group)]
         # fk, fv = self.filter_group[self.sort_filter_idx % len(self.filter_group)]

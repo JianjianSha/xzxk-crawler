@@ -4,6 +4,7 @@ from framework.dba import DBA
 from framework.log import get_logger
 from datetime import datetime
 import hashlib
+import re
 import time
 
 
@@ -27,6 +28,9 @@ class Sync:
         self.m = hashlib.md5()
         # self.logger = get_logger('log/zj.nb.sync.log')
         self.dba = {}
+        self.ptn = r'((\d+([,，]\d{3})*\.?\d*)万?元)'
+        self.digit_ptn = r'^\d+([,，]\d{3})*\.?\d*$'
+        # self.ptn2 = r''
         for k in self.cfg.DATABASES:
             if k == 'INITIALIZE':
                 continue
@@ -113,10 +117,27 @@ class Sync:
                     idx = name.find('(') if name.find('(') > 0 else name.find('（')
                     if idx > 0:
                         name = name[0:idx] 
+                # exec dest
+                duty = d[12]
+                mt = re.match(self.digit_ptn, duty)
+                if mt:
+                    exec_money = duty
+                else:
+                    # ms = re.findall(self.digit_ptn)
+                    ms = re.findall(self.ptn, duty)
+                    if ms == 1:
+                        exec_money = ms[0][1]
+                        if '万' in ms[0][0]:
+                            try:
+                                exec_money = str(float(exec_money)*10000)
+                            except:
+                                pass
+                    else:
+                        exec_money = ''
 
                 md5_ = self._md5(d[10]+d[6]+name)
-                # id, case_no, exec_court, exec_name, 
-                data = -d[0], d[10], d[6], name, d[9], ct, ct, code, md5_
+                # id, case_no, exec_court, exec_name, create_date, update_date, oc_code, md5
+                data = -d[0], d[10], d[6], exec_money, name, d[9], ct, ct, code, md5_
                 datas.append(data)
         except Exception as e:
             print('error: failed to transform data')
@@ -128,10 +149,10 @@ class Sync:
         try:
             
             self.dba['QZCourt'].insert(
-                'insert into Zhixing (zx_id, zx_caseCode, zx_execCourtName, '
+                'insert into Zhixing (zx_id, zx_caseCode, zx_execCourtName, zx_execMoney'
                 'zx_pname, zx_caseCreateTime, createTime, updateTime, status, '
                 'oc_code, zx_type, zx_md5, zx_source) values '
-                "(%s, %s, %s, %s, %s, %s, %s, 1, %s, 0, %s, 'nbcredit.gov.cn')",
+                "(%s, %s, %s, %s, %s, %s, %s, %s, 1, %s, 0, %s, 'nbcredit.gov.cn')",
                 self.datas
             )
             return
@@ -144,17 +165,40 @@ class Sync:
         for data in self.datas:
             try:
                 self.dba['QZCourt'].insert(
-                    'insert into Zhixing (zx_id, zx_caseCode, zx_execCourtName, '
+                    'insert into Zhixing (zx_id, zx_caseCode, zx_execCourtName, zx_execMoney'
                     'zx_pname, zx_caseCreateTime, createTime, updateTime, status, '
                     'oc_code, zx_type, zx_md5, zx_source) values '
-                    "(%s, %s, %s, %s, %s, %s, %s, 1, %s, 0, %s, 'nbcredit.gov.cn')",
+                    "(%s, %s, %s, %s, %s, %s, %s, %s, 1, %s, 0, %s, 'nbcredit.gov.cn')",
                     [data]
                 )
             except Exception as e:
                 print("error: failed to putting data(id->%s) into QZCourt.zhixing" % data[0])
-                print(str(e))
-                if 'duplicate key' not in str(e):
-                    raise e
+                print("try to update the single field 'exec_money'")
+                try:
+                    self.dba['QZCourt'].update(
+                        "update Zhixing set zx_execMoney='%s' where zx_id = %d" 
+                        % (data[3], data[0])
+                    )
+                except:
+                    pass
             
                 
 
+def test():
+    sync = Sync()
+    sync.offset = 0
+    sync.batch = 5
+    sync._get()
+    sync.datas.append(['123456.45']*13)
+    sync.datas.append(['a123.5b']*13)
+    for d in sync.datas:
+        duty = d[12]        # .replace('，', ',')
+        print('duty:', duty)
+        mt = re.match(sync.digit_ptn, duty)
+        if mt:
+            print('match float', mt.group())
+        else:
+            ms = re.findall(sync.ptn, duty)
+            for m in ms:
+                print(m)
+        print('-----------------------------')

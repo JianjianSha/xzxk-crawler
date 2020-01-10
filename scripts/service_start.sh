@@ -6,5 +6,5 @@ source activate
 #  2. modify configuration
 #  3. launch task
 #  4. and so on..
-
-python './service_start.py'
+# add port num behind if 80 is used already
+python './service_start.py' 8181

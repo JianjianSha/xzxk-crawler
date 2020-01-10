@@ -1360,7 +1360,10 @@ var DES3 = {
     }
 };
 
-
+function decipher(b, c) {
+    var decrypted = DES3.decrypt(b, c);
+    return decrypted
+}
 
 function cipher() {
 	var date = new Date();

@@ -11,7 +11,7 @@ PROJECT:
     URL: ''
   JSDOM:
     MODE: webservice   # integration/ webservice
-    URL: 'http://192.168.4.106:8080/ruishu'             # only valid in `webservice` mode
+    URL: 'http://192.168.2.107:8181/ruishu'             # only valid in `webservice` mode
 
 WEB:
   URL_0: http://wenshu.court.gov.cn/website/parse/rest.q4w
